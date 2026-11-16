@@ -3,6 +3,8 @@
 Phần mềm theo dõi công tác, KPI chi đoàn và nhân sự của Liên chi đoàn Khoa các Khoa học Ứng dụng
 (Trường Quốc tế – ĐHQGHN), nhiệm kỳ 2025–2027.
 
+Bản chạy thử: <https://thanhuy8888.github.io/lcdkhud/>
+
 Trang tĩnh thuần, không cần cài đặt gì: mở `index.html` bằng trình duyệt là chạy.
 Dữ liệu lưu trong `localStorage` của máy người dùng — chưa có máy chủ, chưa có đăng nhập thật.
 
