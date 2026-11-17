@@ -86,7 +86,7 @@ python build-artifact.py
 - Tải ảnh minh chứng trực tiếp thay vì dán link Drive.
 - Danh sách bí thư các chi đoàn và số điện thoại nhân sự — nhập từ file Excel.
 
-## Góp sức sửa lỗi
+##Fix bug all dayaaaa
 
 Repo public, rất hoan nghênh mọi người vào fix bug.
 
