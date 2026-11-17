@@ -8,6 +8,21 @@ Bản chạy thử: <https://thanhuy8888.github.io/lcdkhud/>
 Trang tĩnh thuần, không cần cài đặt gì: mở `index.html` bằng trình duyệt là chạy.
 Dữ liệu lưu trong `localStorage` của máy người dùng — chưa có máy chủ, chưa có đăng nhập thật.
 
+## Cài đặt & chạy
+
+Yêu cầu: Python ≥ 3.8 (chỉ dùng thư viện chuẩn). Không có gói pip nào phải cài — xem [`requirements.txt`](requirements.txt).
+
+```bash
+git clone https://github.com/thanhuy8888/lcdkhud.git
+cd lcdkhud
+python -m http.server 5173      # mở http://localhost:5173
+python build-artifact.py        # (tuỳ chọn) gộp thành dist/artifact.html
+```
+
+Thư viện phía trình duyệt tải qua CDN và ghim phiên bản: SheetJS `xlsx` 0.18.5.
+Muốn đổi phiên bản thì sửa đồng thời `index.html`, `build-artifact.py` và `requirements.txt`.
+Thêm thư viện mới → ghi vào `requirements.txt` kèm phiên bản cố định (`==`).
+
 ## Hai vai trò
 
 | BCH Liên chi đoàn | BCH Chi đoàn |
