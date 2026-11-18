@@ -319,46 +319,478 @@ dialog.dlg-wide{width:min(720px,95vw);max-height:88vh;overflow-y:auto}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* ===================== AUTH, LOGIN & USER MANAGEMENT ===================== */
-body.is-login-screen .app > .side{display:none!important}
-body.is-login-screen .app{min-height:100vh;background:linear-gradient(135deg,#091e36 0%,#0e2d52 50%,#184577 100%);display:flex;align-items:center;justify-content:center}
-body.is-login-screen .main{padding:24px!important;display:flex;align-items:center;justify-content:center;width:100%;min-height:100vh}
+body.is-login-screen {
+  overflow-x: hidden;
+  background: var(--bg);
+}
+body.is-login-screen .app > .side {
+  display: none !important;
+}
+body.is-login-screen .app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+body.is-login-screen .main {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
 
-.login-wrapper{width:100%;max-width:460px;margin:0 auto;animation:fadeInUp .3s ease-out}
-@keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.login-box{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px 24px;box-shadow:0 20px 48px -12px rgba(0,0,0,.42);border-top:4px solid var(--cyan)}
-.login-brand{display:flex;gap:12px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:16px}
-.login-brand img{width:52px;height:52px;border-radius:12px;background:#fff;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,.15);object-fit:contain}
-.login-brand h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 2px;font-family:var(--ff)}
-.login-brand b{font-size:13.5px;color:var(--ink);display:block;line-height:1.3}
-.login-brand p{margin:2px 0 0;font-size:11.5px;color:var(--sec)}
-.login-header h1{font-size:20px;margin:0 0 3px}
+/* Khung bố cục đăng nhập 2 cột */
+.login-layout {
+  display: grid;
+  grid-template-columns: 48fr 52fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+}
 
-.form-row{margin-bottom:13px}
-.form-row label{display:block;font-size:12px;font-weight:600;color:var(--sec);margin-bottom:5px}
-.input-icon-wrap{position:relative;display:flex;align-items:center}
-.input-icon-wrap .input-icon{position:absolute;left:11px;font-size:15px;pointer-events:none;opacity:.8}
-.input-icon-wrap input{width:100%;padding:9px 38px 9px 36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;transition:border-color .15s,box-shadow .15s}
-.input-icon-wrap input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent)}
-.btn-toggle-pass{position:absolute;right:8px;background:none;border:0;cursor:pointer;padding:4px;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+/* Cột trái: Nhận diện thương hiệu LCĐ */
+.login-brand-panel {
+  background-color: #0C2948;
+  color: #FFFFFF;
+  padding: 48px 48px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.login-brand-top {
+  display: flex;
+  flex-direction: column;
+}
+.login-brand-org {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.login-brand-logo-tile {
+  width: 52px;
+  height: 52px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+.login-brand-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  display: block;
+}
+.login-brand-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.login-brand-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: #93C5FD;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.login-brand-main {
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.35;
+}
 
-.login-opts{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:12px 0 16px}
-.chk-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--sec)}
-.forgot-link{color:var(--muted);text-decoration:none}
-.forgot-link:hover{color:var(--accent);text-decoration:underline}
-.login-submit-btn{width:100%;padding:11px;font-size:14px;font-weight:700;border-radius:9px;justify-content:center;box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 30%,transparent)}
+.login-brand-mid {
+  margin: 40px 0;
+}
+.login-hero-heading {
+  font-family: var(--fd);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: #FFFFFF;
+  margin: 0 0 12px;
+}
+.login-hero-desc {
+  font-size: 15px;
+  line-height: 1.55;
+  color: #CBD5E1;
+  max-width: 360px;
+  margin: 0 0 28px;
+}
+.login-art-wrap {
+  width: 100%;
+  max-width: 320px;
+  opacity: 0.85;
+}
+.login-art-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
 
-.alert-box{padding:9px 12px;border-radius:8px;font-size:12.5px;line-height:1.4}
-.alert-crit{background:color-mix(in srgb,var(--crit) 10%,transparent);border:1px solid color-mix(in srgb,var(--crit) 30%,transparent);color:var(--crit)}
+.login-brand-bottom {
+  display: flex;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.login-term-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #94A3B8;
+  letter-spacing: 0.01em;
+}
 
-.demo-acc-section{background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:12px 14px;margin-top:18px}
-.demo-acc-title{font-size:11.5px;font-weight:600;color:var(--sec)}
-.demo-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.demo-chip{padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:var(--surface);font-size:11.5px;color:var(--ink);cursor:pointer;transition:all .15s;text-align:left}
-.demo-chip:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 2px 5px rgba(0,0,0,.08)}
-.chip-admin:hover{border-color:var(--crit)}
-.chip-lcd:hover{border-color:var(--accent)}
-.chip-cd:hover{border-color:var(--good)}
-.login-footer{margin-top:16px;text-align:center;font-size:11.5px;color:var(--muted)}
+/* Cột phải: Khối form đăng nhập */
+.login-form-panel {
+  background-color: #F8FAFC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+:root[data-theme="dark"] .login-form-panel {
+  background-color: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-form-panel {
+    background-color: var(--bg);
+  }
+}
+
+.login-form-box {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+}
+.login-mobile-brand {
+  display: none;
+}
+.login-header {
+  margin-bottom: 28px;
+}
+.login-form-title {
+  font-family: var(--fd);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 8px;
+  line-height: 1.25;
+}
+.login-form-desc {
+  font-size: 14px;
+  color: var(--sec);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Thông báo cảnh báo lỗi */
+.login-alert {
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 20px;
+}
+:root[data-theme="dark"] .login-alert {
+  background-color: rgba(185, 28, 28, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #FCA5A5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-alert {
+    background-color: rgba(185, 28, 28, 0.15);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #FCA5A5;
+  }
+}
+
+/* Form controls */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.login-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.login-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.login-forgot-link {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1267A5;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.login-forgot-link:hover {
+  color: #0C4A75;
+  text-decoration: underline;
+}
+:root[data-theme="dark"] .login-forgot-link {
+  color: var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-forgot-link {
+    color: var(--accent);
+  }
+}
+
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.login-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--ink);
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+:root[data-theme="dark"] .login-input {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-input {
+    background-color: var(--surface);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+}
+.login-input:focus {
+  outline: none;
+  border-color: #1267A5;
+  box-shadow: 0 0 0 3px rgba(18, 103, 165, 0.18);
+}
+.login-input[aria-invalid="true"] {
+  border-color: #DC2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+.login-input::placeholder {
+  color: #94A3B8;
+  font-size: 14.5px;
+}
+
+/* Nút ẩn/hiện mật khẩu */
+.password-wrap .login-input {
+  padding-right: 48px;
+}
+.login-pass-btn {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  width: 44px;
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748B;
+  border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.login-pass-btn:hover {
+  color: #0F172A;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="dark"] .login-pass-btn:hover {
+  color: #F8FAFC;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-pass-btn:hover {
+    color: #F8FAFC;
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Nút Đăng nhập */
+.login-submit-btn {
+  width: 100%;
+  height: 48px;
+  background-color: #1267A5;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(18, 103, 165, 0.28);
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  margin-top: 4px;
+}
+.login-submit-btn:hover:not(:disabled) {
+  background-color: #0E5284;
+  box-shadow: 0 4px 12px rgba(18, 103, 165, 0.35);
+}
+.login-submit-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.login-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Footer ghi chú */
+.login-footer {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #E2E8F0;
+  text-align: center;
+}
+:root[data-theme="dark"] .login-footer {
+  border-color: var(--line);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-footer {
+    border-color: var(--line);
+  }
+}
+.login-footer-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Loading & Unconfigured state cards */
+.login-card-unconfigured {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+.login-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(18, 103, 165, 0.2);
+  border-top-color: #1267A5;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 16px auto;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===================== RESPONSIVE (LOGIN SCREEN) ===================== */
+@media (max-width: 960px) {
+  .login-layout {
+    grid-template-columns: 1fr;
+  }
+  .login-brand-panel {
+    display: none;
+  }
+  .login-form-panel {
+    padding: 32px 20px;
+    align-items: flex-start;
+  }
+  .login-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .login-logo-tile-sm {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+  }
+  .login-logo-tile-sm img {
+    width: 36px;
+    height: 36px;
+  }
+  .login-mobile-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .login-mobile-brand-org {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .login-mobile-brand-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .login-form-title {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 360px) {
+  .login-form-panel {
+    padding: 20px 14px;
+  }
+  .login-input {
+    height: 46px;
+    padding: 0 12px;
+  }
+  .password-wrap .login-input {
+    padding-right: 44px;
+  }
+  .login-submit-btn {
+    height: 46px;
+  }
+  .login-form-title {
+    font-size: 24px;
+  }
+}
 
 /* Thẻ người dùng trên Sidebar */
 .user-sidebar-card{padding:10px 12px;background:rgba(0,0,0,.24);border-radius:10px;border:1px solid var(--nav-line)}
@@ -2650,106 +3082,168 @@ const auth = {
   }, 2200);
  },
 
+ _EYE_SVG: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>',
+ _EYE_OFF_SVG: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>',
+
+ _renderBrandPanel() {
+  return `
+  <aside class="login-brand-panel" aria-label="Nhận diện Liên chi đoàn">
+   <div class="login-brand-top">
+    <div class="login-brand-org">
+     <div class="login-brand-logo-tile">
+      <img src="assets/logo.webp" alt="Logo LCĐ KHUD" width="46" height="46" class="login-brand-logo">
+     </div>
+     <div class="login-brand-names">
+      <span class="login-brand-sub">Trường Quốc tế – ĐHQGHN</span>
+      <span class="login-brand-main">Liên chi đoàn Khoa các Khoa học Ứng dụng</span>
+     </div>
+    </div>
+   </div>
+
+   <div class="login-brand-mid">
+    <h1 class="login-hero-heading">Sổ tay<br>Liên chi đoàn</h1>
+    <p class="login-hero-desc">Theo dõi công tác, hoạt động và đánh giá KPI chi đoàn.</p>
+    
+    <div class="login-art-wrap" aria-hidden="true">
+     <svg class="login-art-svg" viewBox="0 0 320 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="20" y1="16" x2="20" y2="144" stroke="#1E3A5F" stroke-width="2" stroke-dasharray="4 4" />
+      <circle cx="20" cy="32" r="5.5" fill="#0C2948" stroke="#38BDF8" stroke-width="2.5" />
+      <rect x="38" y="24" width="130" height="16" rx="4" fill="#1E3A5F" opacity="0.6" />
+      <rect x="178" y="28" width="54" height="8" rx="3" fill="#1E3A5F" opacity="0.3" />
+      <circle cx="20" cy="80" r="5.5" fill="#0C2948" stroke="#00A9E0" stroke-width="2.5" />
+      <rect x="38" y="72" width="165" height="16" rx="4" fill="#1E3A5F" opacity="0.6" />
+      <rect x="213" y="76" width="44" height="8" rx="3" fill="#1E3A5F" opacity="0.3" />
+      <circle cx="20" cy="128" r="5.5" fill="#0C2948" stroke="#38BDF8" stroke-width="2.5" />
+      <rect x="38" y="120" width="145" height="16" rx="4" fill="#1E3A5F" opacity="0.6" />
+      <rect x="193" y="124" width="60" height="8" rx="3" fill="#1E3A5F" opacity="0.3" />
+     </svg>
+    </div>
+   </div>
+
+   <div class="login-brand-bottom">
+    <span class="login-term-badge">Nhiệm kỳ 2025 – 2027</span>
+   </div>
+  </aside>`;
+ },
+
+ _renderMobileBrand() {
+  return `
+  <div class="login-mobile-brand">
+   <div class="login-brand-logo-tile login-logo-tile-sm">
+    <img src="assets/logo.webp" alt="Logo LCĐ KHUD" width="38" height="38" class="login-brand-logo">
+   </div>
+   <div class="login-mobile-brand-text">
+    <span class="login-mobile-brand-org">LCĐ Khoa các Khoa học Ứng dụng</span>
+    <span class="login-mobile-brand-sub">Trường Quốc tế – ĐHQGHN · 2025–2027</span>
+   </div>
+  </div>`;
+ },
+
  renderTrangDangNhap() {
   if (this.status === 'unconfigured') {
    return `
-   <div class="login-wrapper">
-    <div class="login-box">
-     <div class="login-logo-wrap">
-      <img src="assets/logo.webp" alt="Logo LCĐ KHUD" class="login-logo">
-     </div>
-     <div class="login-header">
-      <h1>Cấu hình kết nối hệ thống</h1>
-      <p class="sub">Hệ thống chưa tìm thấy thông tin kết nối Supabase (URL & Public Anon Key).</p>
-     </div>
-     <div class="card" style="margin-bottom:16px;text-align:left">
-      <p style="font-size:13px;line-height:1.6">Ứng dụng đã được chuyển đổi sang mô hình bảo mật máy chủ Supabase Auth & PostgreSQL RLS. Để kích hoạt:</p>
-      <ol style="font-size:13px;line-height:1.6;padding-left:20px;margin:8px 0">
-       <li>Sao chép file <code>.env.example</code> thành <code>.env</code> và điền thông tin dự án Supabase.</li>
-       <li>Chạy file migration trong thư mục <code>supabase/migrations/</code>.</li>
-       <li>Hoặc cấu hình tạm thời bên dưới để thử nghiệm trên trình duyệt:</li>
-      </ol>
-      <div class="f">
-       <label for="cfg_url">Supabase Project URL</label>
-       <input id="cfg_url" placeholder="https://xyzcompany.supabase.co" value="${esc(window.APP_CONFIG ? window.APP_CONFIG.SUPABASE_URL : '')}">
+   <div class="login-layout">
+    ${this._renderBrandPanel()}
+    <section class="login-form-panel">
+     <div class="login-form-box">
+      ${this._renderMobileBrand()}
+      <header class="login-header">
+       <h2 class="login-form-title">Cấu hình kết nối hệ thống</h2>
+       <p class="login-form-desc">Hệ thống chưa tìm thấy thông tin kết nối Supabase (URL & Public Anon Key).</p>
+      </header>
+      <div class="login-card-unconfigured">
+       <p class="t2" style="line-height:1.6;margin-bottom:12px">Ứng dụng bảo mật qua Supabase Auth & PostgreSQL RLS. Để kích hoạt:</p>
+       <ol class="t2" style="line-height:1.6;padding-left:18px;margin:0 0 16px">
+        <li>Sao chép <code>.env.example</code> thành <code>.env.local</code> và điền thông tin dự án.</li>
+        <li>Chạy các migration trong thư mục <code>supabase/migrations/</code>.</li>
+        <li>Hoặc cấu hình nhanh phía dưới để chạy thử nghiệm:</li>
+       </ol>
+       <div class="login-field">
+        <label for="cfg_url" class="login-label">Supabase Project URL</label>
+        <div class="login-input-wrap">
+         <input id="cfg_url" class="login-input" placeholder="https://xyzcompany.supabase.co" value="${esc(window.APP_CONFIG ? window.APP_CONFIG.SUPABASE_URL : '')}">
+        </div>
+       </div>
+       <div class="login-field">
+        <label for="cfg_key" class="login-label">Supabase Publishable Anon Key</label>
+        <div class="login-input-wrap">
+         <input id="cfg_key" class="login-input" placeholder="eyJhbGciOi..." value="${esc(window.APP_CONFIG ? window.APP_CONFIG.SUPABASE_ANON_KEY : '')}">
+        </div>
+       </div>
+       <button type="button" class="login-submit-btn" style="margin-top:12px" onclick="luuConfigTamThoi()">Lưu cấu hình và tiếp tục</button>
       </div>
-      <div class="f">
-       <label for="cfg_key">Supabase Publishable Anon Key</label>
-       <input id="cfg_key" placeholder="eyJhbGciOi..." value="${esc(window.APP_CONFIG ? window.APP_CONFIG.SUPABASE_ANON_KEY : '')}">
-      </div>
-      <button type="button" class="b-p" style="width:100%;margin-top:8px" onclick="luuConfigTamThoi()">Lưu cấu hình và tiếp tục</button>
      </div>
-    </div>
+    </section>
    </div>`;
   }
 
   if (this.status === 'loading') {
    return `
-   <div class="login-wrapper">
-    <div class="login-box" style="text-align:center;padding:48px 24px">
-     <div class="login-logo-wrap"><img src="assets/logo.webp" alt="Logo LCĐ KHUD" class="login-logo"></div>
-     <h2>Đang kiểm tra phiên xác thực...</h2>
-     <p class="sub">Vui lòng chờ trong giây lát.</p>
-    </div>
+   <div class="login-layout">
+    ${this._renderBrandPanel()}
+    <section class="login-form-panel">
+     <div class="login-form-box" style="text-align:center">
+      ${this._renderMobileBrand()}
+      <div class="login-loading-spinner" aria-hidden="true"></div>
+      <h2 class="login-form-title" style="margin-top:16px;font-size:20px">Đang kiểm tra phiên xác thực...</h2>
+      <p class="login-form-desc">Vui lòng chờ trong giây lát.</p>
+     </div>
+    </section>
    </div>`;
   }
 
   return `
-  <div class="login-wrapper">
-   <div class="login-box">
-    <div class="login-logo-wrap">
-     <img src="assets/logo.webp" alt="Logo LCĐ KHUD" class="login-logo">
-    </div>
-    
-    <div class="login-header">
-     <h1>Đăng nhập hệ thống</h1>
-     <p class="sub" style="margin-bottom:12px">Sổ tay theo dõi công tác & Đánh giá KPI Chi đoàn</p>
-    </div>
+  <div class="login-layout">
+   ${this._renderBrandPanel()}
+   <section class="login-form-panel">
+    <div class="login-form-box">
+     ${this._renderMobileBrand()}
+     
+     <header class="login-header">
+      <h2 class="login-form-title">Đăng nhập</h2>
+      <p class="login-form-desc">Sử dụng email đã được cấp để tiếp tục.</p>
+     </header>
 
-    <form id="loginForm" onsubmit="auth.handleLoginSubmit(event)">
-     <div id="loginAlert" class="alert-box alert-crit" style="display:none;margin-bottom:12px"></div>
+     <div id="loginAlert" class="login-alert" role="alert" style="display:none;" aria-live="polite"></div>
 
-     <div class="form-row">
-      <label for="loginUser">Email đăng nhập</label>
-      <div class="input-icon-wrap">
-       <span class="input-icon">✉️</span>
-       <input id="loginUser" type="email" placeholder="Địa chỉ email đã được cấp tài khoản" autocomplete="email" required autofocus>
+     <form id="loginForm" class="login-form" onsubmit="auth.handleLoginSubmit(event)" novalidate>
+      <div class="login-field">
+       <label for="loginUser" class="login-label">Email</label>
+       <div class="login-input-wrap">
+        <input id="loginUser" class="login-input" type="email" name="email" placeholder="name@vnu.edu.vn" autocomplete="email" inputmode="email" required autofocus>
+       </div>
       </div>
-     </div>
 
-     <div class="form-row">
-      <label for="loginPass">Mật khẩu</label>
-      <div class="input-icon-wrap">
-       <span class="input-icon">🔑</span>
-       <input id="loginPass" type="password" placeholder="Nhập mật khẩu..." autocomplete="current-password" required>
-       <button type="button" class="btn-toggle-pass" onclick="auth.togglePasswordVisibility('loginPass', this)" title="Ẩn / Hiện mật khẩu">👁️</button>
+      <div class="login-field">
+       <div class="login-label-row">
+        <label for="loginPass" class="login-label">Mật khẩu</label>
+        <a href="#" onclick="formQuenMatKhau();return false;" class="login-forgot-link">Quên mật khẩu?</a>
+       </div>
+       <div class="login-input-wrap password-wrap">
+        <input id="loginPass" class="login-input" type="password" name="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required>
+        <button type="button" class="login-pass-btn" onclick="auth.togglePasswordVisibility('loginPass', this)" aria-label="Hiện mật khẩu" aria-pressed="false">${this._EYE_SVG}</button>
+       </div>
       </div>
-     </div>
 
-     <div class="login-opts">
-      <a href="#" onclick="formQuenMatKhau();return false;" class="forgot-link">Quên mật khẩu?</a>
-     </div>
+      <button type="submit" class="login-submit-btn">Đăng nhập</button>
+     </form>
 
-     <button type="submit" class="b-p login-submit-btn">Đăng nhập</button>
-    </form>
-
-    <div class="login-footer" style="margin-top:20px;border-top:1px solid var(--border);padding-top:12px">
-     <span>Nhiệm kỳ 2025 – 2027 · Phân quyền máy chủ & Supabase Auth</span>
+     <footer class="login-footer">
+      <p class="login-footer-note">Chưa có tài khoản? Vui lòng liên hệ BCH Liên chi đoàn.</p>
+     </footer>
     </div>
-   </div>
+   </section>
   </div>`;
  },
 
  togglePasswordVisibility(inputId, btn) {
   const inp = document.getElementById(inputId);
   if (!inp) return;
-  if (inp.type === 'password') {
-   inp.type = 'text';
-   btn.textContent = '🙈';
-  } else {
-   inp.type = 'password';
-   btn.textContent = '👁️';
-  }
+  const isPass = inp.type === 'password';
+  inp.type = isPass ? 'text' : 'password';
+  btn.setAttribute('aria-label', isPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  btn.setAttribute('aria-pressed', isPass ? 'true' : 'false');
+  btn.innerHTML = isPass ? auth._EYE_OFF_SVG : auth._EYE_SVG;
  },
 
  async handleLoginSubmit(e) {
@@ -2759,12 +3253,46 @@ const auth = {
   const alertBox = document.getElementById('loginAlert');
   const submitBtn = e.target.querySelector('button[type="submit"]');
 
-  if (submitBtn) {
-   submitBtn.disabled = true;
-   submitBtn.textContent = 'Đang xác thực...';
+  if (alertBox) {
+   alertBox.style.display = 'none';
+   alertBox.textContent = '';
+  }
+  if (uInp) uInp.removeAttribute('aria-invalid');
+  if (pInp) pInp.removeAttribute('aria-invalid');
+
+  const email = (uInp ? uInp.value : '').trim();
+  const pass = (pInp ? pInp.value : '');
+
+  if (!email) {
+   if (alertBox) {
+    alertBox.textContent = 'Vui lòng nhập địa chỉ email.';
+    alertBox.style.display = 'block';
+   }
+   if (uInp) {
+    uInp.setAttribute('aria-invalid', 'true');
+    uInp.focus();
+   }
+   return;
   }
 
-  const res = await this.login(uInp.value, pInp.value);
+  if (!pass) {
+   if (alertBox) {
+    alertBox.textContent = 'Vui lòng nhập mật khẩu.';
+    alertBox.style.display = 'block';
+   }
+   if (pInp) {
+    pInp.setAttribute('aria-invalid', 'true');
+    pInp.focus();
+   }
+   return;
+  }
+
+  if (submitBtn) {
+   submitBtn.disabled = true;
+   submitBtn.textContent = 'Đang đăng nhập…';
+  }
+
+  const res = await this.login(email, pass);
   if (!res.ok) {
    if (submitBtn) {
     submitBtn.disabled = false;
@@ -2775,6 +3303,11 @@ const auth = {
     alertBox.style.display = 'block';
    } else {
     alert(res.msg);
+   }
+   if (uInp) uInp.setAttribute('aria-invalid', 'true');
+   if (pInp) {
+    pInp.setAttribute('aria-invalid', 'true');
+    pInp.focus();
    }
   }
  }
@@ -2799,13 +3332,13 @@ function luuConfigTamThoi() {
 }
 
 function formQuenMatKhau() {
- dlgBody.innerHTML = `<h2>🔑 Quên mật khẩu</h2>
- <p class="sub">Nhập email tài khoản đã đăng ký để nhận link đặt lại mật khẩu từ hệ thống Supabase.</p>
+ dlgBody.innerHTML = `<h2>Quên mật khẩu</h2>
+ <p class="sub">Nhập email tài khoản đã đăng ký để nhận liên kết khôi phục mật khẩu.</p>
  <div class="f">
   <label for="f_email">Email đăng nhập</label>
-  <input id="f_email" type="email" placeholder="admin@is.vnu.edu.vn" required>
+  <input id="f_email" class="login-input" type="email" placeholder="name@vnu.edu.vn" autocomplete="email" required>
  </div>
- <div class="row">
+ <div class="row" style="margin-top:16px">
   <button type="button" id="huy">Huỷ</button>
   <button type="button" class="b-p end" id="gui">Gửi email khôi phục</button>
  </div>`;
@@ -2813,9 +3346,20 @@ function formQuenMatKhau() {
  dlgBody.querySelector('#huy').onclick = () => dlg.close();
  dlgBody.querySelector('#gui').onclick = async () => {
   const mail = dlgBody.querySelector('#f_email').value.trim();
+  if (!mail) {
+   alert('Vui lòng nhập địa chỉ email.');
+   return;
+  }
+  const btn = dlgBody.querySelector('#gui');
+  btn.disabled = true;
+  btn.textContent = 'Đang gửi…';
   const res = await auth.quenMatKhau(mail);
   alert(res.msg);
   if (res.ok) dlg.close();
+  else {
+   btn.disabled = false;
+   btn.textContent = 'Gửi email khôi phục';
+  }
  };
 }
 
