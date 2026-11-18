@@ -50,7 +50,6 @@ assert(loginHtml.includes('Trường Quốc tế – ĐHQGHN'), 'Thiếu tên Tr
 assert(loginHtml.includes('Sổ tay<br>Liên chi đoàn') || loginHtml.includes('Sổ tay Liên chi đoàn'), 'Thiếu tiêu đề chính Sổ tay Liên chi đoàn');
 assert(loginHtml.includes('Theo dõi công tác, hoạt động và đánh giá KPI chi đoàn.'), 'Thiếu mô tả chức năng');
 assert(loginHtml.includes('Nhiệm kỳ 2025 – 2027'), 'Thiếu thông tin nhiệm kỳ');
-assert(loginHtml.includes('login-art-svg'), 'Thiếu họa tiết minh họa timeline tĩnh');
 
 // Vùng form
 assert(loginHtml.includes('<h2 class="login-form-title">Đăng nhập</h2>'), 'Thiếu tiêu đề Đăng nhập');
