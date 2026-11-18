@@ -1,15 +1,17 @@
 # Sổ tay LCĐ KHUD — thư viện cần để chạy code
-# Cài: pip install -r requirements.txt   (hiện tại KHÔNG có gói pip nào phải cài)
+# Cài: pip install -r requirements.txt   (hiện tại KHÔNG có gói pip bên ngoài nào phải cài)
 #
 # Python >= 3.8, chỉ dùng thư viện chuẩn (io, os, re, http.server):
-#   python -m http.server 5173     -> chạy web tại http://localhost:5173
-#   python build-artifact.py       -> gộp thành dist/artifact.html
+#   python -B -m http.server 5173  -> chạy web tại http://localhost:5173
+#   python -B build-artifact.py    -> gộp thành dist/artifact.html
 #
-# Node (tuỳ chọn, chỉ khi dùng build-artifact.js): Node >= 18, chỉ dùng module có sẵn (fs, path).
+# Node (tuỳ chọn, Node >= 18): chỉ dùng module chuẩn (fs, path).
+#   node build-artifact.js         -> gộp thành dist/artifact.html (đồng bộ với script Python)
 #
-# Thư viện phía trình duyệt — tải qua CDN, KHÔNG cài bằng pip. Ghim đúng phiên bản sau:
-#   SheetJS xlsx 0.18.5  https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
-#   Google Fonts         Archivo (500/600/700), Be Vietnam Pro (400/500/600/700)
-# Đổi phiên bản xlsx thì sửa đồng thời index.html và build-artifact.py cho khớp.
+# Thư viện phía trình duyệt — được tự lưu trữ cục bộ (self-hosted / vendored) tại assets/vendor/:
+#   SheetJS Community Edition 0.20.3 (assets/vendor/xlsx.full.min.js) - vá triệt để CVE-2023-30533, CVE-2024-22363
+#   Supabase JS Client 2.49.1 (assets/vendor/supabase.js) - kết nối Supabase Auth, Postgres RLS
+#   Google Fonts: Archivo (500/600/700), Be Vietnam Pro (400/500/600/700)
 #
-# Quy ước: thêm thư viện mới (vd. khi làm backend) -> ghi vào file này kèm phiên bản cố định (==).
+# Cấu hình môi trường:
+#   Sao chép .env.example thành .env.local và cấu hình SUPABASE_URL cùng SUPABASE_ANON_KEY.

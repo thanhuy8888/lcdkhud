@@ -1,133 +1,125 @@
 # Sổ tay Liên chi đoàn KHUD
 
-Phần mềm theo dõi công tác, KPI chi đoàn và nhân sự của Liên chi đoàn Khoa các Khoa học Ứng dụng
-(Trường Quốc tế – ĐHQGHN), nhiệm kỳ 2025–2027.
+Phần mềm theo dõi công tác, KPI chi đoàn và nhân sự của Liên chi đoàn Khoa các Khoa học Ứng dụng (Trường Quốc tế – ĐHQGHN), nhiệm kỳ 2025–2027.
 
-Bản chạy thử: <https://thanhuy8888.github.io/lcdkhud/>
+Hệ thống được thiết kế trên nền tảng Frontend thuần (HTML/CSS/JavaScript), kết nối dịch vụ xác thực Supabase Auth và cơ sở dữ liệu PostgreSQL bảo vệ bởi Row Level Security (RLS). Toàn bộ dữ liệu nghiệp vụ và phân quyền được xác minh phía máy chủ.
 
-Trang tĩnh thuần, không cần cài đặt gì: mở `index.html` bằng trình duyệt là chạy.
-Dữ liệu lưu trong `localStorage` của máy người dùng — chưa có máy chủ, chưa có đăng nhập thật.
+## 1. Cài đặt & Khởi chạy
 
-## Cài đặt & chạy
+### Yêu cầu môi trường
+- Python ≥ 3.8 (chỉ sử dụng thư viện chuẩn `http.server`, `re`, `io`, `os`).
+- Node.js ≥ 18 (tuỳ chọn, phục vụ chạy test suite và build artifact).
+- Không yêu cầu cài đặt thêm các gói bên ngoài qua `pip` hay `npm`.
 
-Yêu cầu: Python ≥ 3.8 (chỉ dùng thư viện chuẩn). Không có gói pip nào phải cài — xem [`requirements.txt`](requirements.txt).
-
-```bash
-git clone https://github.com/thanhuy8888/lcdkhud.git
-cd lcdkhud
-python -m http.server 5173      # mở http://localhost:5173
-python build-artifact.py        # (tuỳ chọn) gộp thành dist/artifact.html
-```
-
-Thư viện phía trình duyệt tải qua CDN và ghim phiên bản: SheetJS `xlsx` 0.18.5.
-Muốn đổi phiên bản thì sửa đồng thời `index.html`, `build-artifact.py` và `requirements.txt`.
-Thêm thư viện mới → ghi vào `requirements.txt` kèm phiên bản cố định (`==`).
-
-## Hai vai trò
-
-| BCH Liên chi đoàn | BCH Chi đoàn |
-|---|---|
-| Tổng quan, công tác theo timeline, ma trận theo dõi, duyệt hồ sơ, so sánh chi đoàn | Tổng quan chi đoàn, hoạt động được giao, hoạt động tự tổ chức, KPI chi tiết |
-| Nhân sự & đánh giá BCH LCĐ, sinh hoạt & điểm danh, nhân sự toàn khoa | Đoàn viên chi đoàn |
-| Nhập / xuất Excel, tổng kết nhiệm kỳ | Nhập / xuất Excel |
-
-Đổi vai trò bằng ô chọn ở góc trên bên trái.
-
-## Cấu trúc
-
-```
-index.html           khung trang + nạp assets
-assets/styles.css    toàn bộ giao diện (biến màu lấy theo logo LCĐ)
-assets/data.js       khung tiêu chí, dữ liệu mẫu, lưu trữ localStorage
-assets/kpi.js        công thức KPI chi đoàn + đánh giá uỷ viên BCH
-assets/ui.js         thành phần dùng chung, biểu đồ, điều hướng
-assets/pages.js      trang của LCĐ và chi đoàn + hộp thoại nhập liệu
-assets/nhansu.js     nhân sự và đánh giá BCH LCĐ
-assets/excel.js      nhập / xuất Excel
-assets/sinhhoat.js   sinh hoạt LCĐ và điểm danh
-assets/boot.js       tự kiểm tra công thức rồi khởi động
-build-artifact.py    gộp tất cả thành dist/artifact.html (bản một file)
-```
-
-## Công thức chấm điểm
-
-**Chi đoàn** — thang 100, gồm 5 tiêu chí mỗi tiêu chí tối đa 20 điểm
-(chính trị tư tưởng · tình nguyện · học tập NCKH · xây dựng Đoàn · tổ chức báo cáo đoàn phí).
-
-```
-Điểm một đầu việc = điểm tối đa × tỷ lệ hoàn thành chỉ tiêu (trần 100%) × 0.8 nếu nộp sau hạn
-Điểm tiêu chí     = min(tổng điểm các nguồn đã duyệt, 20)
-Tổng              = Σ 5 tiêu chí − điểm trừ của LCĐ
-```
-
-Xếp loại: Xuất sắc ≥ 90 · Tốt ≥ 80 · Khá ≥ 65 · Trung bình ≥ 50 · Yếu < 50.
-Điểm chỉ phát sinh từ hồ sơ **đã được LCĐ duyệt**.
-
-**Uỷ viên BCH LCĐ** — thang 100: kết quả công tác được giao phụ trách (35) ·
-chi đoàn được phân công theo dõi (25) · xử lý hồ sơ (20) · sinh hoạt và nhiệm vụ cá nhân (20).
-Ba tiêu chí đầu lấy thẳng từ số liệu, tiêu chí cuối lấy từ bảng điểm danh.
-
-Sửa khung tiêu chí ở `assets/data.js` (`CRIT`, `RANKS`, `BAN`, `VANG_CANH_BAO`)
-và `assets/kpi.js` (`BCRIT`, `TRE_PHAT`).
-
-## Nhập / xuất Excel
-
-Nhận `.xlsx`, `.csv` hoặc dán trực tiếp từ Excel. Đọc đúng định dạng file
-*CHECKLIST CÔNG TÁC VÀ ĐÁNH GIÁ LCĐ KHUD*: sheet DS nhân sự (hiểu dòng tên ban và
-dòng "Key 2k7" là tiêu đề khối), sheet Công tác theo timeline, sheet Điểm danh.
-Xuất ra 13 bảng giữ nguyên tên cột của file gốc.
-
-## Tự kiểm tra
-
-`assets/boot.js` chạy một loạt `console.assert` cho công thức KPI, chuyên cần và
-bộ dò cột tiếng Việt mỗi lần tải trang. Mở Console của trình duyệt, thấy dòng
-`✓ Tự kiểm tra công thức KPI, chuyên cần và nhập/xuất: đạt` là công thức còn đúng.
-
-## Triển khai
+### Khởi chạy môi trường phát triển cục bộ
 
 ```bash
-vercel deploy --prod
+# Khởi chạy máy chủ phát triển cục bộ
+python -B -m http.server 5173
+# Truy cập tại: http://localhost:5173
 ```
 
-Bản một file cho link artifact:
+### Đóng gói Artifact độc lập (Single-file)
+
+Cả hai công cụ đóng gói Python và Node.js đều cho kết quả đồng nhất `dist/artifact.html`:
 
 ```bash
-python build-artifact.py
+# Đóng gói bằng Python
+python -B build-artifact.py
+
+# Hoặc đóng gói bằng Node.js
+node build-artifact.js
 ```
 
-## Việc còn lại trước khi dùng thật
+## 2. Cấu hình Môi trường & Cơ sở Dữ liệu
 
-- Máy chủ và đăng nhập thật (hiện mỗi máy giữ dữ liệu riêng trong trình duyệt).
-- Tải ảnh minh chứng trực tiếp thay vì dán link Drive.
-- Danh sách bí thư các chi đoàn và số điện thoại nhân sự — nhập từ file Excel.
-
-##Fix bug all dayaaaa
-
-Repo public, rất hoan nghênh mọi người vào fix bug.
-
-**Chạy thử (không cần cài gì):**
+### Cấu hình biến môi trường
+Sao chép tệp mẫu và cập nhật thông tin dự án Supabase:
 
 ```bash
-git clone https://github.com/thanhuy8888/lcdkhud.git
-cd lcdkhud
-python -m http.server 5173
+cp .env.example .env.local
 ```
 
-Mở http://localhost:5173 — hoặc mở thẳng `index.html` bằng trình duyệt cũng chạy.
+Khai báo các tham số trong `.env.local` hoặc cấu hình biến môi trường trên nền tảng hosting:
+- `SUPABASE_URL`: Đường dẫn URL dự án Supabase (`https://<project-ref>.supabase.co`).
+- `SUPABASE_ANON_KEY`: Khóa công khai (`anon` / `publishable key`) cấp quyền truy cập phía trình duyệt qua RLS.
+- *Lưu ý*: Tuyệt đối không đưa `SUPABASE_SERVICE_ROLE_KEY` vào mã nguồn client hoặc kho lưu trữ Git.
 
-**Tài khoản demo** (bấm sẵn trên trang đăng nhập): `admin` / `admin123`,
-`bch.lcd` / `lcd123`, `cd_mis2022b` / `cd123`. Đây chỉ là dữ liệu mẫu trong
-`assets/data.js`, không phải mật khẩu thật — cả app chạy ở trình duyệt,
-chưa có máy chủ.
+### Chạy Migration trên Supabase
 
-**Báo lỗi:** mở Issue, kèm bước tái hiện, vai trò đang dùng (LCĐ hay chi đoàn),
-và log trong Console nếu có.
+Khởi tạo cơ sở dữ liệu và chính sách bảo mật RLS bằng cách áp dụng các tệp SQL theo thứ tự trong thư mục `supabase/migrations/`:
 
-**Gửi PR:** fork → sửa → PR vào `main`. Vài điều nên giữ:
+1. `20261118000000_security_p0_schema_rls.sql`:
+   - Định nghĩa bảng danh mục: `chi_doan`, `nhan_su`, `ke_hoach`, `moc_cong_tac`, `bao_cao`, `hoat_dong`, `doan_vien`, `sinh_hoat`, `diem_danh`, `tep_tin`, `profiles`.
+   - Bật Row Level Security (RLS) trên 100% các bảng.
+   - Thiết lập hàm hỗ trợ `SECURITY DEFINER` với `search_path = public, auth` cố định.
+   - Thiết lập trigger kiểm soát duyệt báo cáo và điểm số: chặn chi đoàn tự duyệt hoặc sửa điểm của chính mình.
+   - Phân quyền theo vai trò (`admin`, `lcd`, `cd`, `bbt`).
+2. `20261118000001_seed_initial_data.sql`:
+   - Nạp dữ liệu danh mục ban đầu (chi đoàn, nhân sự, danh mục kế hoạch mẫu) — hoàn toàn không chứa mật khẩu hay thông tin định danh người dùng.
+   - Cung cấp hàm khởi tạo quản trị viên đầu tiên `bootstrap_initial_admin(p_ten)`.
 
-- JavaScript thuần, không build step, không thêm dependency. Thư viện ngoài duy
-  nhất là SheetJS cho Excel, nạp qua CDN trong `index.html`.
-- `console.assert` trong `assets/boot.js` phải còn báo `✓ đạt` sau khi sửa.
-  Sửa công thức KPI thì thêm assert mới ở đó.
-- Sửa file trong `assets/`, đừng sửa `dist/artifact.html` — file đó sinh ra từ
-  `python build-artifact.py`.
+### Khởi tạo Quản trị viên Đầu tiên (First Admin Bootstrap)
+
+Để đảm bảo an toàn, hệ thống không tạo sẵn tài khoản quản trị mặc định:
+1. Đăng ký tài khoản người dùng đầu tiên qua Supabase Dashboard (Auth > Users > Invite user / Add user).
+2. Sau khi tài khoản được tạo và xác nhận email, người dùng đăng nhập lần đầu vào giao diện ứng dụng.
+3. Khi hệ thống chưa có quản trị viên nào, người dùng có thể kích hoạt quyền quản trị thông qua hàm:
+   ```sql
+   SELECT public.bootstrap_initial_admin('Tên Quản Trị Viên');
+   ```
+4. Hàm này tự động khóa vĩnh viễn tính năng self-bootstrap ngay sau khi đã có ít nhất một tài khoản `admin` tồn tại. Các tài khoản tiếp theo sẽ do quản trị viên cấp phát và phân quyền trong trang **Quản trị người dùng**.
+
+## 3. Thư viện Phụ thuộc (Vendored Libraries)
+
+Nhằm đảm bảo an toàn chuỗi cung ứng (Supply Chain Security), chặn rủi ro CDN hijacking và giải quyết các lỗ hổng đã công bố, toàn bộ thư viện trình duyệt được lưu trữ trực tiếp tại `assets/vendor/`:
+
+- **SheetJS (xlsx) Community Edition v0.20.3** (`assets/vendor/xlsx.full.min.js`):
+  - Khắc phục triệt để lỗ hổng Prototype Pollution (CVE-2023-30533, CVE-2024-22363) tồn tại trên bản cũ 0.18.5 nạp từ cdnjs.
+  - Vận hành hoàn toàn offline, không gửi dữ liệu ra bên ngoài.
+- **Supabase JS Client v2.49.1** (`assets/vendor/supabase.js`):
+  - Quản lý phiên xác thực an toàn qua Supabase Auth và giao tiếp PostgreSQL qua REST/PostgREST.
+
+Chi tiết nguồn gốc, mã băm sha256 và giấy phép xem tại [`assets/vendor/README.md`](assets/vendor/README.md).
+
+## 4. Bảng Kiểm kê Dữ liệu Cá nhân (Privacy by Design)
+
+Thực hiện rà soát và thu nhỏ tối đa dữ liệu cá nhân thu thập theo nguyên tắc Privacy by Design:
+
+| Trường thông tin | Mục đích sử dụng | Tính chất | Phạm vi truy cập | Thời hạn lưu trữ | Trạng thái phê duyệt BCH |
+|---|---|---|---|---|---|
+| **Họ và tên** | Định danh đoàn viên / cán bộ Đoàn | Bắt buộc | Chi đoàn sở tại, LCĐ, Admin | Hết nhiệm kỳ công tác | Đã duyệt |
+| **MSSV** | Khóa định danh sinh viên, xếp loại thi đua | Bắt buộc | Chi đoàn sở tại, LCĐ, Admin | Hết khóa học sinh viên | Đã duyệt |
+| **Email** | Xác thực tài khoản đăng nhập Supabase | Bắt buộc với user | Chủ tài khoản, Admin | Theo thời gian hoạt động tài khoản | Đã duyệt |
+| **Lớp / Chi đoàn** | Phân cấp quản lý thi đua và sinh hoạt | Bắt buộc | Chi đoàn sở tại, LCĐ, Admin | Hết khóa học sinh viên | Đã duyệt |
+| **Số điện thoại** | Liên hệ công tác đột xuất | Tùy chọn | LCĐ, Admin | Hết nhiệm kỳ công tác | Đã duyệt |
+| **Link Facebook** | Phối hợp truyền thông & hoạt động Đoàn | Tùy chọn | LCĐ, Admin | Hết nhiệm kỳ công tác | Đã duyệt |
+| **Điểm rèn luyện (ĐRL)** | Đánh giá xếp loại thi đua đoàn viên | Tùy chọn | Chi đoàn sở tại, LCĐ, Admin | Hết năm học | Đã duyệt |
+| **Số hoạt động tham gia** | Tính tỷ lệ huy động lực lượng chi đoàn | Tự động tính | Chi đoàn sở tại, LCĐ, Admin | Hết năm học | Đã duyệt |
+| **Ghi chú đoàn viên** | Ghi nhận hoàn cảnh đặc biệt / Đảng viên | Tùy chọn | Chi đoàn sở tại, LCĐ, Admin | Hết năm học | Đã duyệt |
+
+*Lưu ý an toàn*: Hệ thống không thu thập ngày sinh, số CCCD/CMND, địa chỉ cư trú hoặc thông tin nhạy cảm khác.
+
+## 5. Phân quyền Hệ thống (RBAC & RLS)
+
+- **Quản trị viên (`admin`)**: Toàn quyền cấu hình hệ thống, quản lý tài khoản người dùng, phân vai trò và cấp phát quyền hạn chi tiết.
+- **Ban Chấp hành LCĐ (`lcd`)**: Quản lý kế hoạch tiến độ, thẩm định & duyệt báo cáo minh chứng của chi đoàn, quản lý nhân sự LCĐ và sổ sinh hoạt/điểm danh.
+- **Ban Chấp hành Chi đoàn (`cd`)**: Chỉ được xem và cập nhật dữ liệu thuộc chi đoàn được gán (`cdId`). Báo cáo gửi lên luôn ở trạng thái "Chờ duyệt", không được phép tự duyệt hoặc tự gán điểm thi đua.
+- **Ban Biên tập (`bbt`)**: Mặc định chỉ có quyền đọc tối thiểu để theo dõi tổng quan và viết tin bài truyền thông.
+
+## 6. Kiểm tra & Tự động Hóa Kiểm thử
+
+Chạy bộ kiểm thử bảo mật và hồi quy KPI:
+
+```bash
+node tests/test_security_verification.js
+```
+
+Bộ kiểm tra xác minh 7 nhóm tiêu chuẩn:
+1. Thoát mã HTML (`esc`, `escJs`) chống Cross-Site Scripting (XSS).
+2. Kiểm định URL (`isSafeUrl`, `chuanHoaLink`), chặn các URI nguy hiểm `javascript:`, `data:`, `vbscript:`.
+3. Phân lập dữ liệu chi đoàn: Chi đoàn không thể ghi đè hoặc chuyển nhượng đoàn viên của chi đoàn khác khi nhập Excel.
+4. Xác minh hoạt động offline của thư viện SheetJS và Supabase Client (không gọi CDN ngoài).
+5. Kiểm định bản sao lưu JSON: không rò rỉ mật khẩu, thông tin tài khoản hoặc secrets.
+6. Hồi quy công thức tính KPI chi đoàn và chấm điểm uỷ viên BCH theo đúng quy định.
+7. Cơ chế Fail-Closed: Khóa toàn bộ quyền truy cập và dữ liệu khi thiếu module xác thực hoặc phiên đăng nhập không hợp lệ.

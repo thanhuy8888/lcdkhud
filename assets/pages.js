@@ -273,7 +273,7 @@ PAGES.hoatdong=function(){
   <td class="n">${k.chiTieu?k.chiTieu+(k.donVi==='%'?'% sĩ số':' lượt'):'<span class="t2">nội bộ</span>'}</td>
   <td><span class="track"><i style="width:${Math.min(100,ht)}%;background:${ht>=80?'var(--good)':'var(--seq-4)'}"${tip(k.chiTieu?'Trung bình đạt '+t.tbTy+'% chỉ tiêu · '+t.nop+'/'+DB.cd.length+' chi đoàn nộp':'Theo tiến độ: '+TIENDO[k.tienDo][0])}></i></span>
    <span class="t2">${k.chiTieu?t.dat+'/'+DB.cd.length+' CĐ đạt chỉ tiêu':TIENDO[k.tienDo][0]}${(k.lich||[]).length?' · '+k.lich.filter(m=>m.xong).length+'/'+k.lich.length+' mốc':''}</span></td>
-  <td>${hienThiLink(k.mc,'Mở link',`moSuaLink({tieuDe:'${esc(k.ma)} · ${esc(k.ten)}',url:'${esc(k.mc)}',onSave:v=>{const it=KH(${k.id});if(it)it.mc=v}})`)}</td>
+  <td>${hienThiLink(k.mc,'Mở link',{tieuDe:k.ma+' · '+k.ten,url:k.mc,onSave:v=>{const it=KH(k.id);if(it){it.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuKH)dataApi.luuKH(it);}}})}</td>
   <td class="n" style="white-space:nowrap">
    <button class="b-s" onclick="formKH(${k.id})">Sửa</button>
    <button class="b-s b-no" onclick="xoaKH(${k.id})">Xoá</button>
@@ -367,7 +367,7 @@ PAGES.khct=function(){
  <div class="scroll"><table><thead><tr><th>Chi đoàn</th><th class="n">Sĩ số</th><th class="n">Chỉ tiêu</th><th class="n">Thực hiện</th>
   <th class="n">Tỷ lệ</th><th>Ngày nộp</th><th>Minh chứng</th><th>Trạng thái</th><th class="n">Điểm</th><th style="min-width:130px">Thao tác</th></tr></thead>
  <tbody>${t.rows.map(r=>{
-  const mcHtml = r.b ? hienThiLink(r.b.mc, 'Mở link', `moSuaLink({tieuDe:'Minh chứng: ${esc(k.ma)} - ${esc(r.cd.ma)}', url:'${esc(r.b.mc)}', onSave:v=>{r.b.mc=v}})`) : '<span class="t2">–</span>';
+  const mcHtml = r.b ? hienThiLink(r.b.mc, 'Mở link', {tieuDe:'Minh chứng: '+k.ma+' - '+r.cd.ma, url:r.b.mc, onSave:v=>{r.b.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuBC)dataApi.luuBC(r.b);}}) : '<span class="t2">–</span>';
   const stSelect = r.b ? `
    <select class="st-sel" onchange="doiTrangThaiBC(${r.b.id}, this.value)" title="Đổi trạng thái báo cáo">
     <option value="ok" ${r.b.status==='ok'?'selected':''}>✓ Đã duyệt</option>
@@ -579,7 +579,7 @@ PAGES.duyet=function(){
  <div class="card"><div class="scroll"><table><thead><tr><th>Nội dung</th><th>Chi đoàn</th><th>Loại</th><th>Tiêu chí</th>
   <th class="n">Kết quả</th><th>Ngày</th><th class="n">Điểm</th><th>Trạng thái</th><th style="min-width:180px">Thao tác</th></tr></thead>
  <tbody>${items.map(x=>{
-  const mcHtml = hienThiLink(x.mc, 'Mở link', `moSuaLink({tieuDe:'Minh chứng: ${esc(x.ten)} (${esc(CD(x.cdId).ma)})', url:'${esc(x.mc)}', onSave:v=>{const it=${x.t==='bc'?'DB.bc':'DB.hd'}.find(i=>i.id===${x.id});if(it)it.mc=v}})`);
+  const mcHtml = hienThiLink(x.mc, 'Mở link', {tieuDe:'Minh chứng: '+x.ten+' ('+CD(x.cdId).ma+')', url:x.mc, onSave:v=>{const it=(x.t==='bc'?DB.bc:DB.hd).find(i=>i.id===x.id);if(it){it.mc=v;if(typeof dataApi!=='undefined'){if(x.t==='bc'&&dataApi.luuBC)dataApi.luuBC(it);else if(dataApi.luuHD)dataApi.luuHD(it);}}}});
   const stSel = `
    <select class="st-sel" onchange="${x.t==='bc'?'doiTrangThaiBC':'doiTrangThaiHD'}(${x.id}, this.value)" title="Đổi trạng thái">
     <option value="ok" ${x.st==='ok'?'selected':''}>✓ Đã duyệt</option>
@@ -897,7 +897,7 @@ PAGES.nhiemvu=function(){
  <tbody>${rows.map(({k,b,ct,d})=>{
   const ty=b?Math.round(b.soLuot/ct*100):0;
   const muon=!b&&k.hanChot<TODAY&&k.batDau<=TODAY;
-  const mcHtml=b?hienThiLink(b.mc,'Mở link',`moSuaLink({tieuDe:'Minh chứng: ${esc(k.ma)}',url:'${esc(b.mc)}',onSave:v=>{b.mc=v}})`):'<span class="t2">–</span>';
+  const mcHtml=b?hienThiLink(b.mc,'Mở link',{tieuDe:'Minh chứng: '+k.ma,url:b.mc,onSave:v=>{b.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuBC)dataApi.luuBC(b);}}):'<span class="t2">–</span>';
   return `<tr><td><b>${esc(k.ma)}</b>${k.batBuoc?' '+pill('BB','p-xs'):''}</td>
   <td>${esc(k.ten)}${b&&b.status==='no'?`<div class="t2" style="color:var(--crit)">Nhận xét: ${esc(b.nx)}</div>`:''}</td>
   <td class="t2">${critOf(k.crit).ten}</td>
@@ -909,7 +909,7 @@ PAGES.nhiemvu=function(){
   <td>${b?pillST(b.status):(muon?pill('Quá hạn','p-crit'):(k.batDau>TODAY?pill('Sắp tới','p-mute'):pill('Chưa nộp','p-warn')))}</td>
   <td class="n" style="white-space:nowrap">
    ${k.batDau<=TODAY?`<button class="b-s ${!b?'b-p':b.status==='no'?'b-no':''}" onclick="formBC(${k.id})">${!b?'Nộp báo cáo':(b.status==='ok'?'Sửa / Bổ sung':'Sửa báo cáo')}</button>`:'<span class="t2">Chưa mở</span>'}
-   ${b?`<button class="b-s" onclick="moSuaLink({tieuDe:'Minh chứng: ${esc(k.ma)}',url:'${esc(b.mc)}',onSave:v=>{b.mc=v}})" title="Sửa link">🔗 Sửa link</button>`:''}
+   ${b?`<button class="b-s" type="button" data-edit-link-id="${dangKySuaLink({tieuDe:'Minh chứng: '+k.ma,url:b.mc,onSave:v=>{b.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuBC)dataApi.luuBC(b);}})}" title="Sửa link">🔗 Sửa link</button>`:''}
   </td></tr>`}).join('')}
  </tbody></table></div></div>`;
 };
@@ -924,7 +924,7 @@ PAGES.tuchuc=function(){
  <tbody>${hd.map(h=>`<tr><td><b>${esc(h.ten)}</b></td>
   <td class="t2">${critOf(h.crit).ten}</td><td class="t2">${dmy(h.ngay)}</td><td class="n">${h.sl||'–'}</td>
   <td class="n">${h.diem}</td>
-  <td>${hienThiLink(h.mc,'Mở link',`moSuaLink({tieuDe:'Minh chứng: ${esc(h.ten)}',url:'${esc(h.mc)}',onSave:v=>{h.mc=v}})`)}</td>
+  <td>${hienThiLink(h.mc,'Mở link',{tieuDe:'Minh chứng: '+h.ten,url:h.mc,onSave:v=>{h.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuHD)dataApi.luuHD(h);}})}</td>
   <td>${pillST(h.status)}</td>
   <td class="n" style="white-space:nowrap">
    <button class="b-s" onclick="formHD(${h.id})">✏️ Sửa</button>
@@ -962,9 +962,32 @@ function cdNhanSu(){
   <td class="n"><button class="b-s" onclick="formDV(${d.id})">Sửa</button> <button class="b-s b-no" onclick="xoaDV(${d.id})">Xoá</button></td></tr>`).join('')
   ||'<tr><td colspan="9" class="empty">Chưa có đoàn viên nào.</td></tr>'}</tbody></table></div></div>`;
 }
-function togglePhi(id){const d=DB.dv.find(x=>x.id===id);d.doanPhi=!d.doanPhi;save();render()}
-function xoaDV(id){const d=DB.dv.find(x=>x.id===id);
- xacNhan('Xoá đoàn viên?',d.ten+' sẽ bị xoá khỏi sổ chi đoàn.',()=>{DB.dv=DB.dv.filter(x=>x.id!==id);save();render()})}
+function togglePhi(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ const d=DB.dv.find(x=>x.id===id);
+ if(!d) return;
+ if(curUser && curUser.role === 'cd' && d.cdId !== curUser.cdId){
+  alert('Không thể sửa đoàn phí của chi đoàn khác.');
+  return;
+ }
+ d.doanPhi=!d.doanPhi;
+ if(typeof dataApi !== 'undefined' && dataApi.luuDV) dataApi.luuDV(d).catch(e=>console.error(e));
+ render();
+}
+function xoaDV(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ const d=DB.dv.find(x=>x.id===id);
+ if(!d) return;
+ if(curUser && curUser.role === 'cd' && d.cdId !== curUser.cdId){
+  alert('Không thể xóa đoàn viên của chi đoàn khác.');
+  return;
+ }
+ xacNhan('Xoá đoàn viên?',d.ten+' sẽ bị xoá khỏi sổ chi đoàn.', async ()=>{
+  if(typeof dataApi !== 'undefined' && dataApi.xoaDV) await dataApi.xoaDV(id).catch(e=>console.error(e));
+  else DB.dv=DB.dv.filter(x=>x.id!==id);
+  render();
+ });
+}
 
 /* ===================== HỘP THOẠI ===================== */
 function xacNhan(tieuDe,noiDung,onOk){
@@ -975,11 +998,21 @@ function xacNhan(tieuDe,noiDung,onOk){
  dlgBody.querySelector('#okBtn').onclick=()=>{dlg.close();onOk()};
 }
 function formBC(khId, customCdId){
- const c = customCdId ? CD(customCdId) : me();
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser){ alert('Chưa đăng nhập.'); return; }
+ const isCd = curUser.role === 'cd';
+ if(isCd && !auth.coQuyen('nop_bc')){ alert('Bạn không có quyền nộp báo cáo.'); return; }
+ if(!isCd && !auth.coQuyen('duyet_bc')){ alert('Bạn không có quyền duyệt hoặc quản trị báo cáo.'); return; }
+
+ const c = isCd ? CD(curUser.cdId) : (customCdId ? CD(customCdId) : me());
  const k = KH(khId);
  const b = bcOf(khId, c.id);
+ if(isCd && b && b.status === 'ok'){
+  alert('Báo cáo đã được LCĐ duyệt chính thức, không thể tự ý sửa.');
+  return;
+ }
  const ct = chiTieuSo(k, c);
- const isLcd = state.role === 'lcd';
+ const isLcd = !isCd;
  dlgBody.innerHTML = `<h2>${b?'Cập nhật':'Nộp'} báo cáo — ${esc(k.ma)}</h2>
  <p class="sub">${esc(k.ten)} · Chi đoàn <b>${esc(c.ma)}</b> · chỉ tiêu <b>${ct}</b> lượt (${k.donVi==='%'?k.chiTieu+'% sĩ số '+c.siSo:'cố định'}) · hạn ${dmy(k.hanChot)}</p>
 
@@ -1032,33 +1065,67 @@ function formBC(khId, customCdId){
  dlgBody.querySelector('#b_test_mc').onclick = () => {
   const v = dlgBody.querySelector('#b_mc').value.trim();
   if(!v) return alert('Vui lòng nhập link trước khi thử mở!');
-  window.open(chuanHoaLink(v), '_blank', 'noopener');
+  const clean = chuanHoaLink(v);
+  if(!clean) return alert('Đường dẫn không hợp lệ hoặc giao thức nguy hiểm.');
+  window.open(clean, '_blank', 'noopener');
  };
- luu.onclick = () => {
+ luu.onclick = async () => {
   const so = +b_so.value;
   if(so === undefined || isNaN(so) || so < 0) return b_so.focus();
   const treHan = TODAY > k.hanChot;
   const st = isLcd ? (dlgBody.querySelector('#b_st') ? dlgBody.querySelector('#b_st').value : 'wait') : 'wait';
   const nx = isLcd && dlgBody.querySelector('#b_nx') ? dlgBody.querySelector('#b_nx').value.trim() : (b?b.nx:'');
   const mcVal = b_mc.value.trim() || '(chưa có)';
-  if(b){
-   Object.assign(b, {soLuot: so, mc: mcVal, ngayNop: b.ngayNop||TODAY, treHan, status: st, nx: st==='ok'?'':nx});
-  } else {
-   DB.bc.push({id: nextId(DB.bc), khId, cdId: c.id, soLuot: so, ngayNop: TODAY, treHan, mc: mcVal, status: st, nx});
+  if(mcVal !== '(chưa có)' && !isSafeUrl(mcVal)){
+   alert('Đường dẫn minh chứng không an toàn.');
+   return;
   }
-  save(); dlg.close(); render();
+  const reportObj = b ? Object.assign(b, {soLuot: so, mc: mcVal, ngayNop: b.ngayNop||TODAY, treHan, status: st, nx: st==='ok'?'':nx})
+                      : {id: nextId(DB.bc), khId, cdId: c.id, soLuot: so, ngayNop: TODAY, treHan, mc: mcVal, status: st, nx};
+  try {
+   if(typeof dataApi !== 'undefined' && dataApi.luuBC){
+    await dataApi.luuBC(reportObj);
+   } else {
+    if(!b) DB.bc.push(reportObj);
+   }
+   dlg.close(); render();
+  } catch(err){
+   alert('Lỗi lưu báo cáo: ' + err.message);
+  }
  };
 }
 
 function xoaBC(id){
- xacNhan('Xoá báo cáo này?', 'Số liệu và minh chứng đã nộp của chi đoàn sẽ bị xoá.', ()=>{
-  DB.bc = DB.bc.filter(x => x.id !== id);
-  save(); dlg.close(); render();
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ const b = DB.bc.find(x => x.id === id);
+ if(!b) return;
+ if(curUser && curUser.role === 'cd'){
+  if(b.cdId !== curUser.cdId || b.status === 'ok'){
+   alert('Chi đoàn không thể xóa báo cáo đã duyệt hoặc của chi đoàn khác.');
+   return;
+  }
+ }
+ xacNhan('Xoá báo cáo này?', 'Số liệu và minh chứng đã nộp của chi đoàn sẽ bị xoá.', async ()=>{
+  try {
+   if(typeof dataApi !== 'undefined' && dataApi.xoaBC) await dataApi.xoaBC(id);
+   else DB.bc = DB.bc.filter(x => x.id !== id);
+   dlg.close(); render();
+  } catch(err){
+   alert('Lỗi xóa báo cáo: ' + err.message);
+  }
  });
 }
 function formHD(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser){ alert('Chưa đăng nhập.'); return; }
+ const isCd = curUser.role === 'cd';
+ if(isCd && !auth.coQuyen('tuchuc_hd')){ alert('Bạn không có quyền đăng ký hoạt động tự tổ chức.'); return; }
  const h = id ? DB.hd.find(x => x.id === id) : {ten:'', crit:'ct', ngay:TODAY, sl:0, diem:4, mc:'', status:'wait'};
- const isLcd = state.role === 'lcd';
+ if(isCd && id && (h.cdId !== curUser.cdId || h.status === 'ok')){
+  alert('Không thể chỉnh sửa hoạt động của chi đoàn khác hoặc đã được duyệt.');
+  return;
+ }
+ const isLcd = !isCd;
  dlgBody.innerHTML = `<h2>${id?'Sửa':'Gửi'} hoạt động tự tổ chức</h2>
  <p class="sub">Hoạt động do chi đoàn tự tổ chức để tích lũy điểm tiêu chí KPI</p>
 
@@ -1099,32 +1166,65 @@ function formHD(id){
  dlgBody.querySelector('#h_test_mc').onclick = () => {
   const v = dlgBody.querySelector('#h_mc').value.trim();
   if(!v) return alert('Vui lòng nhập link trước khi thử mở!');
-  window.open(chuanHoaLink(v), '_blank', 'noopener');
+  const clean = chuanHoaLink(v);
+  if(!clean) return alert('Đường dẫn không hợp lệ hoặc chứa giao thức nguy hiểm.');
+  window.open(clean, '_blank', 'noopener');
  };
- luu.onclick = () => {
+ luu.onclick = async () => {
   if(!h_ten.value.trim()) return h_ten.focus();
-  const st = isLcd && dlgBody.querySelector('#h_st') ? dlgBody.querySelector('#h_st').value : (h.status || 'wait');
+  const st = isLcd && dlgBody.querySelector('#h_st') ? dlgBody.querySelector('#h_st').value : 'wait';
+  const diemVal = isLcd ? (+h_diem.value||1) : (id ? h.diem : 0);
+  const mcVal = h_mc.value.trim() || '(chưa có)';
+  if(mcVal !== '(chưa có)' && !isSafeUrl(mcVal)){
+   alert('Đường dẫn minh chứng không an toàn.');
+   return;
+  }
   const o = {
    ten: h_ten.value.trim(), crit: h_crit.value, ngay: h_ngay.value,
-   sl: +h_sl.value||0, diem: +h_diem.value||1,
-   mc: h_mc.value.trim() || '(chưa có)', status: st
+   sl: +h_sl.value||0, diem: diemVal,
+   mc: mcVal, status: st
   };
-  if(id) Object.assign(DB.hd.find(x => x.id === id), o);
-  else DB.hd.push({id: nextId(DB.hd), cdId: state.cdId, ...o});
-  save(); dlg.close(); render();
+  if(id) Object.assign(h, o);
+  else Object.assign(h, o, {id: nextId(DB.hd), cdId: isCd ? curUser.cdId : state.cdId});
+  try {
+   if(typeof dataApi !== 'undefined' && dataApi.luuHD) await dataApi.luuHD(h);
+   else if(!id) DB.hd.push(h);
+   dlg.close(); render();
+  } catch(err){
+   alert('Lỗi lưu hoạt động: ' + err.message);
+  }
  };
 }
 
 function xoaHD(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
  const h = DB.hd.find(x => x.id === id);
- xacNhan('Xoá hoạt động tự tổ chức?', (h?h.ten:'Hoạt động này') + ' sẽ bị xoá vĩnh viễn.', ()=>{
-  DB.hd = DB.hd.filter(x => x.id !== id);
-  save(); dlg.close(); render();
+ if(!h) return;
+ if(curUser && curUser.role === 'cd' && (h.cdId !== curUser.cdId || h.status === 'ok')){
+  alert('Không thể xóa hoạt động đã duyệt hoặc của chi đoàn khác.');
+  return;
+ }
+ xacNhan('Xoá hoạt động tự tổ chức?', (h?h.ten:'Hoạt động này') + ' sẽ bị xoá vĩnh viễn.', async ()=>{
+  try {
+   if(typeof dataApi !== 'undefined' && dataApi.xoaHD) await dataApi.xoaHD(id);
+   else DB.hd = DB.hd.filter(x => x.id !== id);
+   dlg.close(); render();
+  } catch(err){
+   alert('Lỗi xóa hoạt động: ' + err.message);
+  }
  });
 }
 
 function formDV(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser){ alert('Chưa đăng nhập.'); return; }
+ const isCd = curUser.role === 'cd';
+ if(isCd && !auth.coQuyen('ql_doanvien')){ alert('Bạn không có quyền quản lý đoàn viên.'); return; }
  const d=id?DB.dv.find(x=>x.id===id):{ten:'',mssv:'',cv:'Đoàn viên',drl:75,soHD:0,doanPhi:false,ghiChu:''};
+ if(isCd && id && d.cdId !== curUser.cdId){
+  alert('Không thể chỉnh sửa đoàn viên của chi đoàn khác.');
+  return;
+ }
  dlgBody.innerHTML=`<h2>${id?'Sửa':'Thêm'} đoàn viên</h2>
  <div class="f"><label for="d_ten">Họ và tên</label><input id="d_ten" value="${esc(d.ten)}"></div>
  <div class="row" style="gap:10px"><div class="f" style="flex:1"><label for="d_mssv">MSSV</label><input id="d_mssv" value="${esc(d.mssv)}"></div>
@@ -1135,17 +1235,36 @@ function formDV(id){
  <div class="f"><label class="row" style="font-weight:400"><input id="d_phi" type="checkbox" ${d.doanPhi?'checked':''}> Đã nộp đoàn phí học kỳ 1</label></div>
  <div class="row"><button type="button" id="huy">Huỷ</button><button type="button" class="b-p end" id="luu">Lưu</button></div>`;
  dlg.showModal();huy.onclick=()=>dlg.close();
- luu.onclick=()=>{
+ luu.onclick= async ()=>{
   if(!d_ten.value.trim())return d_ten.focus();
-  const o={ten:d_ten.value.trim(),mssv:d_mssv.value.trim(),cv:d_cv.value,drl:+d_drl.value,soHD:+d_hd.value,
-   doanPhi:d_phi.checked,ghiChu:d_gc.value.trim()};
-  if(id)Object.assign(DB.dv.find(x=>x.id===id),o);else DB.dv.push({id:nextId(DB.dv),cdId:state.cdId,...o});
-  save();dlg.close();render();
+  const mssvVal = d_mssv.value.trim();
+  const trung = DB.dv.find(x => x.mssv && x.mssv === mssvVal && x.id !== id);
+  if(trung){
+   alert('MSSV này đã tồn tại trong hệ thống (thuộc ' + (CD(trung.cdId) ? CD(trung.cdId).ma : 'chi đoàn khác') + ').');
+   return;
+  }
+  const targetCdId = isCd ? curUser.cdId : state.cdId;
+  const o={ten:d_ten.value.trim(),mssv:mssvVal,cv:d_cv.value,drl:+d_drl.value,soHD:+d_hd.value,
+   doanPhi:d_phi.checked,ghiChu:d_gc.value.trim(), cdId: targetCdId};
+  if(id) Object.assign(d, o);
+  else Object.assign(d, o, {id: nextId(DB.dv)});
+  try {
+   if(typeof dataApi !== 'undefined' && dataApi.luuDV) await dataApi.luuDV(d);
+   else if(!id) DB.dv.push(d);
+   dlg.close(); render();
+  } catch(err){
+   alert('Lỗi lưu đoàn viên: ' + err.message);
+  }
  };
 }
 
 document.addEventListener('click',e=>{if(e.target.id==='themKH')formKH()});
 function formKH(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser || curUser.role === 'cd' || !auth.coQuyen('ql_kh')){
+  alert('Chỉ Ban Chấp hành LCĐ mới có quyền quản lý đầu việc và giao chỉ tiêu.');
+  return;
+ }
  const k=id?KH(id):{ten:'',crit:'ct',ban:['Ban Phong trào'],ptIds:[],batDau:TODAY,hanChot:dayAdd(TODAY,21),
   hienThi:'',tienDo:'chua',diem:6,chiTieu:0,donVi:'n',batBuoc:false,ketQua:'',mc:'',note:''};
  dlgBody.innerHTML=`<h2>${id?'Sửa đầu việc':'Thêm đầu việc vào timeline'}</h2>
@@ -1196,43 +1315,69 @@ function formKH(id){
 }
 
 function xoaKH(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser || curUser.role === 'cd' || !auth.coQuyen('ql_kh')){
+  alert('Chỉ Ban Chấp hành LCĐ mới có quyền xóa đầu việc.');
+  return;
+ }
  const k=KH(id);
- xacNhan('Xoá đầu việc '+k.ma+'?', (k?k.ten:'Đầu việc này')+' và toàn bộ báo cáo nộp của các chi đoàn cho việc này sẽ bị xoá.', ()=>{
-  DB.kh = DB.kh.filter(x=>x.id!==id);
-  DB.bc = DB.bc.filter(x=>x.khId!==id);
-  save(); dlg.close(); go('hoatdong');
+ xacNhan('Xoá đầu việc '+k.ma+'?', (k?k.ten:'Đầu việc này')+' và toàn bộ báo cáo nộp của các chi đoàn cho việc này sẽ bị xoá.', async ()=>{
+  if(typeof dataApi !== 'undefined' && dataApi.xoaKH) await dataApi.xoaKH(id).catch(e=>console.error(e));
+  else {
+   DB.kh = DB.kh.filter(x=>x.id!==id);
+   DB.bc = DB.bc.filter(x=>x.khId!==id);
+  }
+  dlg.close(); go('hoatdong');
  });
 }
 
 function formCD(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser){ alert('Chưa đăng nhập.'); return; }
+ const isCd = curUser.role === 'cd';
+ if(isCd && !id){
+  alert('Chi đoàn không có quyền tạo mới chi đoàn.');
+  return;
+ }
+ if(!isCd && !auth.coQuyen('ql_csdl')){
+  alert('Bạn không có quyền quản trị chi đoàn.');
+  return;
+ }
  const c = id ? CD(id) : {ma:'', ten:'', nganh:'', siSo:50, bt:'', sdt:'', diemTru:0};
+ if(isCd && c.id !== curUser.cdId){
+  alert('Không thể sửa thông tin của chi đoàn khác.');
+  return;
+ }
  dlgBody.innerHTML = `<h2>${id?'Sửa thông tin':'Thêm'} Chi đoàn</h2>
  <p class="sub">Thông tin chi đoàn trực thuộc Liên chi đoàn</p>
  <div class="row" style="gap:10px">
-  <div class="f" style="flex:1"><label for="cd_ma">Mã chi đoàn (viết hoa)</label><input id="cd_ma" value="${esc(c.ma)}" placeholder="VD: MIS2024A"></div>
-  <div class="f" style="flex:1.5"><label for="cd_ten">Tên chi đoàn</label><input id="cd_ten" value="${esc(c.ten)}" placeholder="VD: Chi đoàn MIS2024A"></div>
+  <div class="f" style="flex:1"><label for="cd_ma">Mã chi đoàn (viết hoa)</label><input id="cd_ma" value="${esc(c.ma)}" placeholder="VD: MIS2024A" ${isCd?'disabled':''}></div>
+  <div class="f" style="flex:1.5"><label for="cd_ten">Tên chi đoàn</label><input id="cd_ten" value="${esc(c.ten)}" placeholder="VD: Chi đoàn MIS2024A" ${isCd?'disabled':''}></div>
  </div>
  <div class="row" style="gap:10px">
-  <div class="f" style="flex:1"><label for="cd_nganh">Ngành / Khóa</label><input id="cd_nganh" value="${esc(c.nganh)}" placeholder="VD: MIS · K2024"></div>
-  <div class="f" style="width:100px"><label for="cd_siso">Sĩ số SV</label><input id="cd_siso" type="number" min="1" value="${c.siSo||50}"></div>
+  <div class="f" style="flex:1"><label for="cd_nganh">Ngành / Khóa</label><input id="cd_nganh" value="${esc(c.nganh)}" placeholder="VD: MIS · K2024" ${isCd?'disabled':''}></div>
+  <div class="f" style="width:100px"><label for="cd_siso">Sĩ số SV</label><input id="cd_siso" type="number" min="1" value="${c.siSo||50}" ${isCd?'disabled':''}></div>
  </div>
  <div class="row" style="gap:10px">
   <div class="f" style="flex:1"><label for="cd_bt">Họ tên Bí thư chi đoàn</label><input id="cd_bt" value="${esc(c.bt)}" placeholder="Họ và tên"></div>
   <div class="f" style="flex:1"><label for="cd_sdt">Số điện thoại liên hệ</label><input id="cd_sdt" value="${esc(c.sdt)}" placeholder="09xxxxxxxx"></div>
  </div>
- <div class="f"><label for="cd_dt">Điểm trừ kỷ luật (nếu có)</label><input id="cd_dt" type="number" min="0" value="${c.diemTru||0}"></div>
+ <div class="f"><label for="cd_dt">Điểm trừ kỷ luật (nếu có)</label><input id="cd_dt" type="number" min="0" value="${c.diemTru||0}" ${isCd?'disabled':''}></div>
  <div class="row">
   <button type="button" id="huy">Huỷ</button>
-  ${id?`<button type="button" class="b-no" onclick="xoaCD(${id})">Xoá chi đoàn</button>`:''}
+  ${id&&!isCd?`<button type="button" class="b-no" onclick="xoaCD(${id})">Xoá chi đoàn</button>`:''}
   <button type="button" class="b-p end" id="luu">Lưu</button>
  </div>`;
  dlg.showModal();
  huy.onclick=()=>dlg.close();
- luu.onclick=()=>{
+ luu.onclick= async ()=>{
   if(!cd_ma.value.trim()) return cd_ma.focus();
   const ma = cd_ma.value.trim().toUpperCase();
   const ten = cd_ten.value.trim() || ('Chi đoàn ' + ma);
-  const o = {
+  const o = isCd ? {
+   bt: cd_bt.value.trim() || '(chưa cập nhật)',
+   sdt: cd_sdt.value.trim()
+  } : {
    ma, ten, nganh: cd_nganh.value.trim(),
    siSo: Math.max(1, +cd_siso.value||1),
    bt: cd_bt.value.trim() || '(chưa cập nhật)',
@@ -1241,23 +1386,34 @@ function formCD(id){
   };
   if(id) {
    Object.assign(CD(id), o);
+   if(typeof dataApi !== 'undefined' && dataApi.luuCD) await dataApi.luuCD(CD(id)).catch(e=>console.error(e));
   } else {
    const nid = nextId(DB.cd);
-   DB.cd.push({id: nid, ...o});
+   const newCd = {id: nid, ...o};
+   DB.cd.push(newCd);
+   if(typeof dataApi !== 'undefined' && dataApi.luuCD) await dataApi.luuCD(newCd).catch(e=>console.error(e));
   }
-  save(); dlg.close(); render();
+  dlg.close(); render();
  };
 }
 
 function xoaCD(id){
+ const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ if(!curUser || curUser.role === 'cd' || !auth.coQuyen('ql_csdl')){
+  alert('Chi đoàn không thể xóa chi đoàn khỏi hệ thống.');
+  return;
+ }
  const c = CD(id);
- xacNhan('Xoá chi đoàn '+c.ma+'?', 'Toàn bộ báo cáo, hoạt động và đoàn viên của chi đoàn này sẽ bị xoá.', ()=>{
-  DB.cd = DB.cd.filter(x=>x.id!==id);
-  DB.bc = DB.bc.filter(x=>x.cdId!==id);
-  DB.hd = DB.hd.filter(x=>x.cdId!==id);
-  DB.dv = DB.dv.filter(x=>x.cdId!==id);
-  DB.ns.forEach(u=>{u.theoDoi = (u.theoDoi||[]).filter(i=>i!==id)});
+ xacNhan('Xoá chi đoàn '+c.ma+'?', 'Toàn bộ báo cáo, hoạt động và đoàn viên của chi đoàn này sẽ bị xoá.', async ()=>{
+  if(typeof dataApi !== 'undefined' && dataApi.xoaCD) await dataApi.xoaCD(id).catch(e=>console.error(e));
+  else {
+   DB.cd = DB.cd.filter(x=>x.id!==id);
+   DB.bc = DB.bc.filter(x=>x.cdId!==id);
+   DB.hd = DB.hd.filter(x=>x.cdId!==id);
+   DB.dv = DB.dv.filter(x=>x.cdId!==id);
+   DB.ns.forEach(u=>{u.theoDoi = (u.theoDoi||[]).filter(i=>i!==id)});
+  }
   if(state.cdId===id && DB.cd.length) state.cdId=DB.cd[0].id;
-  save(); dlg.close(); render();
+  dlg.close(); render();
  });
 }
