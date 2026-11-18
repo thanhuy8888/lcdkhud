@@ -1,6 +1,6 @@
-/* Khung tiêu chí, dữ liệu mẫu và lưu trữ cục bộ. */
+/* Khung tiêu chí, dữ liệu và tương tác API Sổ tay LCĐ KHUD */
 /* ===================== KHUNG TIÊU CHÍ ===================== */
-const TODAY=new Date().toISOString().slice(0,10); // ngày thật của máy, dữ liệu mẫu neo quanh tháng 10/2026
+const TODAY=new Date().toISOString().slice(0,10);
 const CRIT=[
  {id:'ct',ten:'Giáo dục chính trị – tư tưởng',max:20,c:'var(--s1)'},
  {id:'tn',ten:'Tình nguyện – vì cộng đồng',max:20,c:'var(--s2)'},
@@ -11,19 +11,17 @@ const CRIT=[
 const critOf=id=>CRIT.find(c=>c.id===id);
 const RANKS=[[90,'Xuất sắc','p-xs'],[80,'Tốt','p-good'],[65,'Khá','p-warn'],[50,'Trung bình','p-ser'],[0,'Yếu','p-crit']];
 const xepLoai=d=>RANKS.find(r=>d>=r[0]);
-const TRE_PHAT=0.8; // nộp sau hạn chót chỉ còn 80% điểm
+const TRE_PHAT=0.8;
 
-/* ===================== DỮ LIỆU MẪU ===================== */
-/* Cơ cấu lấy theo file CHECKLIST CÔNG TÁC VÀ ĐÁNH GIÁ LCĐ KHUD (nhiệm kỳ 25–27):
-   nhân sự theo ban chuyên môn · công tác theo timeline · sinh hoạt hàng tuần · điểm danh. */
+/* ===================== CƠ CẤU & DANH MỤC ===================== */
 const BAN=['Thường trực','Ban Phong trào','Ban Tình nguyện','Ban Tài chính – Hậu cần','Ban Truyền thông','Ban Tổ chức – Kiểm tra','Ban Học tập & NCKH'];
 const VAITRO=['Bí thư','Phó Bí thư','UV BTV','UV BCH','Trưởng ban','Phó ban','Thành viên'];
 const NHOM=[['bch','Ban Chấp hành Liên chi đoàn'],['bcm','Ban chuyên môn'],['nguon','Key 2k7 — cán bộ nguồn']];
 const tenNhom=n=>(NHOM.find(x=>x[0]===n)||NHOM[1])[1];
 const TIENDO={chua:['Chưa triển khai','p-mute'],dang:['Đang triển khai','p-xs'],xong:['Hoàn thành','p-good']};
-const VANG_CANH_BAO=3; // nghỉ từ 3 buổi sinh hoạt sẽ bị xem xét theo quy định của LCĐ
+const VANG_CANH_BAO=3;
 
-/* Lịch công tác: các mốc nhỏ của từng đầu việc — [tên mốc, hạn, người phụ trách, đã xong] */
+/* Lịch công tác mặc định */
 const LICH={
  'KH-02':[['Chốt điều lệ và phân môn thi','2026-03-05',8,1],['Nhận đăng ký của các chi đoàn','2026-03-12',9,1],
   ['Bốc thăm chia bảng','2026-03-18',3,1],['Thi đấu vòng loại','2026-03-25',8,0],['Tổng kết, trao giải','2026-03-31',3,0]],
@@ -37,8 +35,8 @@ const LICH={
   ['Chốt danh sách tham dự','2026-10-17',16,0],['Tổ chức workshop','2026-10-20',10,0]],
  'KH-21':[['Mở cổng đề cử','2026-09-04',6,1],['Chốt danh sách đề cử','2026-09-20',12,1],['Gala trao giải','2026-10-05',6,1]],
 };
+
 function seed(){
- /* Chi đoàn trực thuộc = chi đoàn theo lớp */
  const cd=[
   {id:1,ma:'MIS2022B',ten:'Chi đoàn MIS2022B',nganh:'MIS · K2022',siSo:62,bt:'(chưa cập nhật)',sdt:'',diemTru:0},
   {id:2,ma:'MIS2023A',ten:'Chi đoàn MIS2023A',nganh:'MIS · K2023',siSo:58,bt:'(chưa cập nhật)',sdt:'',diemTru:2},
@@ -48,8 +46,7 @@ function seed(){
   {id:6,ma:'BDA2024A',ten:'Chi đoàn BDA2024A',nganh:'BDA · K2024',siSo:71,bt:'(chưa cập nhật)',sdt:'',diemTru:0},
   {id:7,ma:'BDA2025A',ten:'Chi đoàn BDA2025A',nganh:'BDA · K2025',siSo:78,bt:'(chưa cập nhật)',sdt:'',diemTru:1},
  ];
- /* Nhân sự Liên chi đoàn theo ban chuyên môn. SĐT / MSSV / Facebook để trống —
-    nhập thẳng từ sheet "DS NHÂN SỰ" ở trang Nhập / xuất Excel. */
+
  const ns=[
   {id:1, ten:'Bùi Nhật Lệ',              vaiTro:'Bí thư',    ban:'Thường trực',               lop:'',          bch:1,theoDoi:[]},
   {id:2, ten:'Thân Quang Huy',           vaiTro:'Phó Bí thư',ban:'Thường trực',               lop:'MIS2022B',  bch:1,theoDoi:[1,2]},
@@ -78,8 +75,6 @@ function seed(){
   {id:25,ten:'Hoàng Thị Tú An',          vaiTro:'Thành viên',ban:'Ban Truyền thông',          lop:'MIS2 K24',  bch:0,nhom:'nguon',theoDoi:[]},
  ].map(u=>({sdt:'',mssv:'',fb:'',nhom:u.bch?'bch':'bcm',...u}));
 
- /* Công tác theo timeline: hoạt động có chỉ tiêu được chấm KPI chi đoàn,
-    hoạt động chỉ tiêu 0 là việc nội bộ LCĐ — chỉ theo dõi tiến độ. */
  const kh=[
   {ma:'KH-01',ten:'FDB Talent',crit:'ht',ban:['Ban Học tập & NCKH'],ptIds:[6],batDau:'2026-03-01',hanChot:'2026-04-30',hienThi:'3/2026 – 4/2026',tienDo:'xong',diem:9,chiTieu:10,donVi:'n',batBuoc:0,ketQua:''},
   {ma:'KH-02',ten:'Hội thao Isport',crit:'ht',ban:['Ban Phong trào'],ptIds:[1,3,8,9],batDau:'2026-03-01',hanChot:'2026-03-31',hienThi:'01/03/2026',tienDo:'dang',diem:10,chiTieu:15,donVi:'n',batBuoc:1,ketQua:''},
@@ -105,9 +100,8 @@ function seed(){
   {ma:'KH-22',ten:'Kế hoạch BDA Talent 2026',crit:'ht',ban:['Ban Học tập & NCKH'],ptIds:[6],batDau:'2026-11-01',hanChot:'2026-12-15',hienThi:'Coming soon',tienDo:'chua',diem:0,chiTieu:0,donVi:'n',batBuoc:0,ketQua:''},
   {ma:'KH-23',ten:'ISTUBOX KHUD (tài liệu học tập)',crit:'ht',ban:['Ban Học tập & NCKH'],ptIds:[6,19],batDau:'2026-12-01',hanChot:'2027-01-31',hienThi:'12/2026 – 01/2027',tienDo:'chua',diem:0,chiTieu:0,donVi:'n',batBuoc:0,ketQua:''},
   {ma:'KH-24',ten:'Bán dây thẻ KHUD',crit:'hc',ban:['Ban Tài chính – Hậu cần','Ban Truyền thông'],ptIds:[5,11],batDau:'2026-11-01',hanChot:'2026-12-31',hienThi:'Coming soon',tienDo:'chua',diem:0,chiTieu:0,donVi:'n',batBuoc:0,ketQua:''},
- ].map((k,i)=>({id:i+1,lich:(LICH[k.ma]||[]).map((m,j)=>({id:j+1,ten:m[0],han:m[1],nsId:m[2],xong:!!m[3]})),...k,batBuoc:!!k.batBuoc,ptId:k.ptIds[0],mc:k.tienDo==='xong'?'drive.google.com/'+k.ma.toLowerCase():'',note:''}));
+ ].map((k,i)=>({id:i+1,lich:(LICH[k.ma]||[]).map((m,j)=>({id:j+1,ten:m[0],han:m[1],nsId:m[2],xong:!!m[3]})),...k,batBuoc:!!k.batBuoc,ptId:k.ptIds[0],mc:k.tienDo==='xong'?'https://drive.google.com/'+k.ma.toLowerCase():'',note:''}));
 
- /* Sinh hoạt Liên chi đoàn + điểm danh */
  const hop=[
   {id:1,ten:'Họp Liên chi đoàn KHUD',ngay:'2026-09-01',noiDung:'Triển khai công tác đầu năm học, phân công ban chuyên môn.',bienBan:'Biên bản họp 01-09.docx'},
   {id:2,ten:'Họp Liên chi đoàn KHUD',ngay:'2026-09-08',noiDung:'Chốt kế hoạch Mùa vui Trung thu và Star Awards 2026.',bienBan:'Biên bản họp 08-09.docx'},
@@ -118,13 +112,13 @@ function seed(){
   {id:7,ten:'Họp Liên chi đoàn KHUD',ngay:'2026-10-06',noiDung:'Chốt số liệu Star Awards 2026, rà soát hồ sơ phát triển Đảng.',bienBan:'Biên bản họp 06-10.docx'},
   {id:8,ten:'Họp Liên chi đoàn KHUD',ngay:'2026-10-13',noiDung:'Đánh giá giữa học kỳ, nhắc chi đoàn còn nợ báo cáo.',bienBan:''},
  ].map(h=>({tep:[],...h}));
+
  const dd=[];
  hop.forEach(h=>ns.forEach(u=>{
   const r=(h.id*5+u.id*7)%11;
   dd.push({hopId:h.id,nsId:u.id,co:!(r===0||(r===4&&u.id%3===0)),muon:r===2});
  }));
 
- /* Đoàn viên các chi đoàn */
  const hoTen=['Nguyễn Văn An','Trần Thị Bình','Lê Hoàng Cường','Phạm Thuỳ Dung','Hoàng Minh Đức','Vũ Thị Én','Đặng Quốc Phong','Bùi Thu Giang','Ngô Hải Hà','Dương Khánh Ly','Tạ Minh Nhật','Lý Thu Oanh','Phan Gia Phúc','Hồ Thanh Quý','Mai Nhật Sang','Trịnh Bảo Trân','Cao Minh Tuấn','Lưu Thị Vân','Đinh Quang Vũ','Chu Hồng Yến'];
  const cvs=['Bí thư','Phó Bí thư','Uỷ viên BCH','Đoàn viên','Đoàn viên','Đoàn viên','Đoàn viên'];
  const dv=[];let k2=1;
@@ -139,7 +133,6 @@ function seed(){
   }
  });
 
- /* Báo cáo của chi đoàn cho các hoạt động có giao chỉ tiêu */
  const bc=[];let b=1;
  kh.forEach(k=>{ if(!k.chiTieu||k.batDau>TODAY) return;
   cd.forEach(c=>{
@@ -152,11 +145,11 @@ function seed(){
    const ngayNop=treHan?dayAdd(k.hanChot,4):dayAdd(k.hanChot<TODAY?k.hanChot:TODAY,-2);
    const st=r===1?'wait':(r===7?'no':'ok');
    bc.push({id:b++,khId:k.id,cdId:c.id,soLuot:Math.max(1,Math.round(ct*ty)),ngayNop,treHan,
-     mc:'drive.google.com/'+k.ma.toLowerCase()+'-'+c.ma.toLowerCase(),status:st,
+     mc:'https://drive.google.com/'+k.ma.toLowerCase()+'-'+c.ma.toLowerCase(),status:st,
      nx:st==='no'?'Minh chứng chưa đủ, đề nghị bổ sung ảnh và danh sách ký tên.':''});
   });
  });
- /* Hoạt động do chi đoàn tự tổ chức */
+
  const hd=[
   [1,'ht','Seminar “Dữ liệu và nghề nghiệp MIS”','2026-09-22',41,5,'ok'],
   [1,'xd','Kết nạp 6 đoàn viên mới','2026-09-28',6,4,'ok'],
@@ -172,13 +165,12 @@ function seed(){
   [6,'tn','Ngày hội tình nguyện tân sinh viên','2026-09-21',44,6,'ok'],
   [7,'tn','Vệ sinh khu tự học tầng 5','2026-09-14',21,4,'ok'],
   [7,'ht','Tham quan doanh nghiệp fintech','2026-10-09',30,6,'wait'],
- ].map((h,i)=>({id:i+1,cdId:h[0],crit:h[1],ten:h[2],ngay:h[3],sl:h[4],diem:h[5],status:h[6],mc:'drive.google.com/hd-'+(i+1)}));
+ ].map((h,i)=>({id:i+1,cdId:h[0],crit:h[1],ten:h[2],ngay:h[3],sl:h[4],diem:h[5],status:h[6],mc:'https://drive.google.com/hd-'+(i+1)}));
 
- const users = seedDefaultUsers(cd);
- return {cd,ns,kh,hop,dd,bc,hd,dv,users};
+ return {cd,ns,kh,hop,dd,bc,hd,dv};
 }
 
-/** Danh mục tất cả quyền hạn có thể phân quyền trong hệ thống */
+/** Danh mục quyền hạn */
 const DANH_SACH_QUYEN = [
  { id: 'xem_tongquan', ma: 'TỔNG QUAN', ten: 'Xem Tổng quan & Xếp hạng', nhom: 'Chung', desc: 'Xem trang tổng quan, ma trận tiến độ và bảng xếp hạng thi đua' },
  { id: 'duyet_bc',     ma: 'DUYỆT BC',   ten: 'Duyệt báo cáo & Chấm KPI', nhom: 'Nghiệp vụ LCĐ', desc: 'Thẩm định hồ sơ, minh chứng Google Drive/ảnh, duyệt hoặc trả lại' },
@@ -188,8 +180,8 @@ const DANH_SACH_QUYEN = [
  { id: 'tuchuc_hd',    ma: 'TỰ TỔ CHỨC', ten: 'Đăng ký Hoạt động tự tổ chức', nhom: 'Chi đoàn', desc: 'Khai báo các hoạt động do Chi đoàn lớp tự tổ chức' },
  { id: 'ql_doanvien',  ma: 'ĐOÀN VIÊN',  ten: 'Quản lý Đoàn viên & Đoàn phí', nhom: 'Chi đoàn', desc: 'Quản lý danh sách sinh viên lớp, điểm rèn luyện và đóng đoàn phí' },
  { id: 'nhap_excel',   ma: 'EXCEL',      ten: 'Nhập / Xuất dữ liệu Excel', nhom: 'Dữ liệu', desc: 'Nhập xuất danh sách sinh viên, nhân sự, đoàn phí bằng Excel' },
- { id: 'ql_csdl',      ma: 'CSDL DATA',  ten: 'Quản lý Dữ liệu & Backup', nhom: 'Hệ thống', desc: 'Sao lưu, phục hồi file JSON, khởi tạo dữ liệu thật / demo' },
- { id: 'ql_user',      ma: 'PHÂN QUYỀN', ten: 'Phân quyền & Quản trị User', nhom: 'Hệ thống', desc: 'Tạo tài khoản, tích chọn phân quyền và khóa/mở khóa tài khoản' },
+ { id: 'ql_csdl',      ma: 'CSDL DATA',  ten: 'Quản lý Dữ liệu & Backup', nhom: 'Hệ thống', desc: 'Sao lưu, phục hồi file JSON, quản trị dữ liệu' },
+ { id: 'ql_user',      ma: 'PHÂN QUYỀN', ten: 'Phân quyền & Quản trị User', nhom: 'Hệ thống', desc: 'Tạo tài khoản, phân quyền và khóa/mở khóa tài khoản' },
 ];
 
 const QUYEN_THEO_VAI_TRO = {
@@ -199,41 +191,14 @@ const QUYEN_THEO_VAI_TRO = {
  bbt:   ['xem_tongquan', 'nhap_excel']
 };
 
-/** Danh sách tài khoản mặc định phân quyền cho hệ thống */
-function seedDefaultUsers(cdList=[]){
- const defaultUsers = [
-  {id:1, username:'admin', password:'admin123', ten:'Quản trị viên hệ thống', role:'admin', cdId:null, email:'admin@is.vnu.edu.vn', sdt:'0988888888', active:true, ngayTao:'2026-01-01', lanCuoi:'', quyen:[...QUYEN_THEO_VAI_TRO.admin]},
-  {id:2, username:'bch.lcd', password:'lcd123', ten:'BCH Liên chi đoàn KHUD', role:'lcd', cdId:null, email:'lcd.khud@is.vnu.edu.vn', sdt:'0966666666', active:true, ngayTao:'2026-01-01', lanCuoi:'', quyen:[...QUYEN_THEO_VAI_TRO.lcd]},
- ];
- let nextUid = 3;
- (cdList||[]).forEach(c=>{
-  const uName = 'cd_' + String(c.ma||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-  defaultUsers.push({
-   id: nextUid++,
-   username: uName,
-   password: 'cd123',
-   ten: 'BCH ' + (c.ten||c.ma),
-   role: 'cd',
-   cdId: c.id,
-   email: '',
-   sdt: c.sdt||'',
-   active: true,
-   ngayTao: '2026-01-01',
-   lanCuoi: '',
-   quyen: [...QUYEN_THEO_VAI_TRO.cd]
-  });
- });
- return defaultUsers;
-}
 const dayAdd=(d,n)=>{const t=new Date(d+'T00:00:00');t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)};
 const dmy=d=>d?d.slice(8,10)+'/'+d.slice(5,7)+(d.slice(0,4)!=='2026'?'/'+d.slice(2,4):''):'–';
 const chiTieuSo=(k,c)=>k.donVi==='%'?Math.round(c.siSo*k.chiTieu/100):k.chiTieu;
 
-/** Tính khoảng cách (số ngày) từ hoạt động đến mốc ngày today (mặc định TODAY) */
 function khoangCachNgayKH(k, today = TODAY){
  const bd = k.batDau || today;
  const hc = k.hanChot || bd;
- if (bd <= today && today <= hc) return 0; // Đang diễn ra trong khoảng thời gian này
+ if (bd <= today && today <= hc) return 0;
  const tNow = new Date(today + 'T00:00:00').getTime();
  if (today < bd) {
   return Math.round(Math.abs(new Date(bd + 'T00:00:00').getTime() - tNow) / 86400000);
@@ -241,16 +206,13 @@ function khoangCachNgayKH(k, today = TODAY){
  return Math.round(Math.abs(tNow - new Date(hc + 'T00:00:00').getTime()) / 86400000);
 }
 
-/** So sánh thứ tự giữa 2 hoạt động theo tiêu chí sắp xếp */
 function soSanhKH(a, b, kieu = 'near', today = TODAY){
  if(kieu === 'near'){
   const ca = khoangCachNgayKH(a, today);
   const cb = khoangCachNgayKH(b, today);
-  if(ca !== cb) return ca - cb; // Càng gần ngày bây giờ càng lên đầu
-  // Nếu khoảng cách bằng nhau: việc chưa xong ưu tiên hơn việc đã xong
+  if(ca !== cb) return ca - cb;
   if(a.tienDo === 'xong' && b.tienDo !== 'xong') return 1;
   if(b.tienDo === 'xong' && a.tienDo !== 'xong') return -1;
-  // Ưu tiên việc đang/sắp diễn ra trước việc đã kết thúc
   const aFuture = (a.hanChot || a.batDau) >= today ? 1 : 0;
   const bFuture = (b.hanChot || b.batDau) >= today ? 1 : 0;
   if(aFuture !== bFuture) return bFuture - aFuture;
@@ -268,28 +230,96 @@ function soSanhKH(a, b, kieu = 'near', today = TODAY){
  return 0;
 }
 
+/* ===================== AN TOÀN DỮ LIỆU & ESCAPING ===================== */
 
-/* ===================== LƯU TRỮ ===================== */
-const KEY='lcdkhud.v2';
-let DB;
-try{DB=JSON.parse(localStorage.getItem(KEY))||seed()}catch(e){DB=seed()}
-if(!DB.users || !Array.isArray(DB.users) || DB.users.length === 0){
- DB.users = seedDefaultUsers(DB.cd || []);
- try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}
-} else {
- // Đảm bảo toàn bộ user đều có mảng quyen
- let changed = false;
- DB.users.forEach(u => {
-  if(!u.quyen || !Array.isArray(u.quyen)){
-   u.quyen = [...(QUYEN_THEO_VAI_TRO[u.role] || QUYEN_THEO_VAI_TRO.cd)];
-   changed = true;
-  }
- });
- if(changed) try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}
+/** Mã hóa chuỗi cho HTML (chống XSS) */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
+ '&': '&amp;',
+ '<': '&lt;',
+ '>': '&gt;',
+ '"': '&quot;',
+ "'": '&#39;'
+}[m]));
+
+/** Thoát chuỗi an toàn khi truyền trong ngữ cảnh JavaScript */
+const escJs = s => String(s ?? '')
+ .replace(/\\/g, '\\\\')
+ .replace(/'/g, "\\'")
+ .replace(/"/g, '\\"')
+ .replace(/\n/g, '\\n')
+ .replace(/\r/g, '\\r');
+
+const nextId = a => (a && a.length) ? a.reduce((m, x) => Math.max(m, x.id || 0), 0) + 1 : 1;
+
+/** Kiểm tra đường dẫn URL hợp lệ và giao thức an toàn */
+function isSafeUrl(u) {
+ if (!u) return false;
+ const s = String(u).trim();
+ if (/^(javascript|data|vbscript|file):/i.test(s)) return false;
+ try {
+  const parsed = new URL(s.startsWith('http://') || s.startsWith('https://') ? s : 'https://' + s);
+  return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+ } catch (e) {
+  return false;
+ }
 }
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}};
-/* Kho tệp đính kèm: thông tin tệp nằm cùng dữ liệu, nội dung tệp nằm trong IndexedDB
-   của trình duyệt (chứa được hàng trăm MB, không giới hạn 5MB như localStorage). */
+
+/** Chuẩn hóa link để luôn mở an toàn trong tab mới */
+const chuanHoaLink = u => {
+ if (!u || u === '(chưa có)' || u === '–') return '';
+ const s = String(u).trim();
+ if (/^(javascript|data|vbscript|file):/i.test(s)) return '';
+ if (s.startsWith('http://') || s.startsWith('https://')) return s;
+ if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(s) || s.startsWith('/')) {
+  return 'https://' + s;
+ }
+ return '';
+};
+
+/* Quản lý đăng ký hành động sửa link mà không chèn chuỗi động vào onclick */
+const _linkActions = new Map();
+let _linkActionSeq = 1;
+
+function dangKySuaLink(opts) {
+ const actId = 'lnk_' + (_linkActionSeq++);
+ _linkActions.set(actId, opts);
+ return actId;
+}
+
+function laySuaLink(actId) {
+ return _linkActions.get(actId);
+}
+
+/** Hiển thị link mở trong tab mới + nút sửa link (không dùng dynamic inline JS) */
+function hienThiLink(url, label = 'Mở link', editOpts = null) {
+ const clean = chuanHoaLink(url);
+ let editBtn = '';
+ if (editOpts) {
+  const actId = dangKySuaLink(editOpts);
+  editBtn = `<button type="button" class="btn-edit-link" data-edit-link-id="${actId}" title="${clean ? 'Chỉnh sửa link' : 'Nhập link'}">${clean ? '✏️ Sửa' : '+ Thêm link'}</button>`;
+ }
+ if (!clean) {
+  return `<span class="link-item"><span class="t2">(chưa có link)</span>${editBtn}</span>`;
+ }
+ return `<span class="link-item"><a href="${esc(clean)}" target="_blank" rel="noopener noreferrer" class="link-badge" title="${esc(url)}">🔗 ${esc(label)}</a>${editBtn}</span>`;
+}
+
+// Bắt sự kiện click chỉnh sửa link thông qua event delegation an toàn
+document.addEventListener('click', function(e) {
+ const btn = e.target.closest('[data-edit-link-id]');
+ if (btn) {
+  const actId = btn.getAttribute('data-edit-link-id');
+  const opts = laySuaLink(actId);
+  if (opts && typeof moSuaLink === 'function') {
+   moSuaLink(opts);
+  }
+ }
+});
+
+/* ===================== BỘ NHỚ TRẠNG THÁI (DB) ===================== */
+let DB = { cd: [], ns: [], kh: [], hop: [], dd: [], bc: [], hd: [], dv: [] };
+
+/* Kho tệp đính kèm IndexedDB */
 const TEP_KHO='lcdkhud-tep';
 const moKho=()=>new Promise((ok,loi)=>{
  const r=indexedDB.open(TEP_KHO,1);
@@ -307,89 +337,570 @@ const layTep=id=>moKho().then(db=>new Promise((ok,loi)=>{
 const xoaTepKho=id=>moKho().then(db=>new Promise(ok=>{
  const t=db.transaction('tep','readwrite');t.objectStore('tep').delete(id);t.oncomplete=()=>ok();
 }));
-/** 1536000 -> "1,5 MB" */
 const coTep=b=>b<1024?b+' B':b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(1).replace('.',',')+' MB';
 const idTep=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
 const TEP_TOI_DA=25*1048576;
 
-const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-const nextId=a=>(a&&a.length)?a.reduce((m,x)=>Math.max(m,x.id||0),0)+1:1;
+/* ===================== DATA ADAPTER LAYER (SUPABASE + MEMORY) ===================== */
 
-/** Chuẩn hóa link để luôn mở được trong tab mới */
-const chuanHoaLink=u=>{
- if(!u||u==='(chưa có)'||u==='–') return '';
- const s=String(u).trim();
- if(s.startsWith('http://')||s.startsWith('https://')) return s;
- return 'https://'+s;
+const dataApi = {
+ async loadAll() {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   // Khi chưa kết nối máy chủ Supabase: giữ DB rỗng, không tự động fallback seed
+   return;
+  }
+
+  try {
+   const [resCd, resNs, resKh, resMoc, resBc, resHd, resDv, resHop, resDd, resTep] = await Promise.all([
+    client.from('chi_doan').select('*').order('id'),
+    client.from('nhan_su').select('*').order('id'),
+    client.from('ke_hoach').select('*').order('id'),
+    client.from('moc_cong_tac').select('*').order('id'),
+    client.from('bao_cao').select('*').order('id'),
+    client.from('hoat_dong').select('*').order('id'),
+    client.from('doan_vien').select('*').order('id'),
+    client.from('sinh_hoat').select('*').order('id'),
+    client.from('diem_danh').select('*'),
+    client.from('tep_tin').select('*').order('created_at')
+   ]);
+
+   if (resCd.error) throw resCd.error;
+   if (resNs.error) throw resNs.error;
+   if (resKh.error) throw resKh.error;
+
+   const cd = (resCd.data || []).map(c => ({
+    id: c.id,
+    ma: c.ma,
+    ten: c.ten,
+    nganh: c.nganh || '',
+    siSo: c.si_so || 0,
+    bt: c.bt || '',
+    sdt: c.sdt || '',
+    diemTru: c.diem_tru || 0
+   }));
+
+   const ns = (resNs.data || []).map(u => ({
+    id: u.id,
+    ten: u.ten,
+    vaiTro: u.vai_tro,
+    ban: u.ban,
+    lop: u.lop || '',
+    sdt: u.sdt || '',
+    mssv: u.mssv || '',
+    fb: u.fb || '',
+    bch: u.bch || 0,
+    nhom: u.nhom || 'bcm',
+    theoDoi: u.theo_doi || []
+   }));
+
+   const mocs = resMoc.data || [];
+   const kh = (resKh.data || []).map(k => ({
+    id: k.id,
+    ma: k.ma,
+    ten: k.ten,
+    crit: k.crit,
+    ban: k.ban || [],
+    ptIds: k.pt_ids || [],
+    ptId: k.pt_id || (k.pt_ids && k.pt_ids[0]) || null,
+    batDau: k.bat_dau,
+    hanChot: k.han_chot,
+    hienThi: k.hien_thi || '',
+    tienDo: k.tien_do || 'chua',
+    diem: Number(k.diem) || 0,
+    chiTieu: k.chi_tieu || 0,
+    donVi: k.don_vi || 'n',
+    batBuoc: !!k.bat_buoc,
+    ketQua: k.ket_qua || '',
+    mc: k.mc || '',
+    note: k.note || '',
+    lich: mocs.filter(m => m.kh_id === k.id).map(m => ({
+     id: m.id,
+     ten: m.ten,
+     han: m.han,
+     nsId: m.ns_id,
+     xong: !!m.xong
+    }))
+   }));
+
+   const bc = (resBc.data || []).map(b => ({
+    id: b.id,
+    khId: b.kh_id,
+    cdId: b.cd_id,
+    soLuot: b.so_luot,
+    ngayNop: b.ngay_nop,
+    treHan: !!b.tre_han,
+    mc: b.mc || '',
+    status: b.status || 'wait',
+    nx: b.nx || ''
+   }));
+
+   const hd = (resHd.data || []).map(h => ({
+    id: h.id,
+    cdId: h.cd_id,
+    crit: h.crit,
+    ten: h.ten,
+    ngay: h.ngay,
+    sl: h.sl || 0,
+    diem: Number(h.diem) || 0,
+    status: h.status || 'wait',
+    mc: h.mc || ''
+   }));
+
+   const dv = (resDv.data || []).map(d => ({
+    id: d.id,
+    cdId: d.cd_id,
+    ten: d.ten,
+    mssv: d.mssv,
+    cv: d.cv || 'Đoàn viên',
+    drl: d.drl || 0,
+    doanPhi: !!d.doan_phi,
+    soHD: d.so_hd || 0,
+    ghiChu: d.ghi_chu || ''
+   }));
+
+   const teps = resTep.data || [];
+   const hop = (resHop.data || []).map(h => ({
+    id: h.id,
+    ten: h.ten,
+    ngay: h.ngay,
+    noiDung: h.noi_dung || '',
+    bienBan: h.bien_ban || '',
+    tep: teps.filter(t => t.hop_id === h.id).map(t => ({
+     id: t.id,
+     ten: t.ten,
+     loai: t.loai,
+     co: t.co
+    }))
+   }));
+
+   const dd = (resDd.data || []).map(d => ({
+    hopId: d.hop_id,
+    nsId: d.ns_id,
+    co: !!d.co,
+    muon: !!d.muon
+   }));
+
+   DB = { cd, ns, kh, hop, dd, bc, hd, dv };
+  } catch (err) {
+   console.error('Lỗi khi tải dữ liệu từ máy chủ:', err);
+   alert('Lỗi nạp dữ liệu từ máy chủ: ' + (err.message || 'Không thể đồng bộ.'));
+  }
+ },
+
+ async luuBC(b) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.bc.findIndex(x => x.id === b.id);
+   if (idx !== -1) DB.bc[idx] = b; else DB.bc.push(b);
+   return { ok: true };
+  }
+  const payload = {
+   kh_id: b.khId,
+   cd_id: b.cdId,
+   so_luot: b.soLuot,
+   ngay_nop: b.ngayNop,
+   mc: b.mc,
+   status: b.status,
+   nx: b.nx
+  };
+  let res;
+  if (b.id && DB.bc.some(x => x.id === b.id)) {
+   res = await client.from('bao_cao').update(payload).eq('id', b.id).select();
+  } else {
+   res = await client.from('bao_cao').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) {
+   b.id = res.data[0].id;
+   b.treHan = !!res.data[0].tre_han;
+   b.status = res.data[0].status;
+  }
+  const idx = DB.bc.findIndex(x => x.id === b.id);
+  if (idx !== -1) DB.bc[idx] = b; else DB.bc.push(b);
+  return { ok: true };
+ },
+
+ async xoaBC(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('bao_cao').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.bc = DB.bc.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuHD(h) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.hd.findIndex(x => x.id === h.id);
+   if (idx !== -1) DB.hd[idx] = h; else DB.hd.push(h);
+   return { ok: true };
+  }
+  const payload = {
+   cd_id: h.cdId,
+   crit: h.crit,
+   ten: h.ten,
+   ngay: h.ngay,
+   sl: h.sl,
+   diem: h.diem,
+   status: h.status,
+   mc: h.mc
+  };
+  let res;
+  if (h.id && DB.hd.some(x => x.id === h.id)) {
+   res = await client.from('hoat_dong').update(payload).eq('id', h.id).select();
+  } else {
+   res = await client.from('hoat_dong').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) {
+   h.id = res.data[0].id;
+   h.status = res.data[0].status;
+   h.diem = Number(res.data[0].diem) || 0;
+  }
+  const idx = DB.hd.findIndex(x => x.id === h.id);
+  if (idx !== -1) DB.hd[idx] = h; else DB.hd.push(h);
+  return { ok: true };
+ },
+
+ async xoaHD(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('hoat_dong').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.hd = DB.hd.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuDV(d) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.dv.findIndex(x => x.id === d.id);
+   if (idx !== -1) DB.dv[idx] = d; else DB.dv.push(d);
+   return { ok: true };
+  }
+  const payload = {
+   cd_id: d.cdId,
+   ten: d.ten,
+   mssv: d.mssv,
+   cv: d.cv,
+   drl: d.drl,
+   doan_phi: d.doanPhi,
+   so_hd: d.soHD,
+   ghi_chu: d.ghiChu
+  };
+  let res;
+  if (d.id && DB.dv.some(x => x.id === d.id)) {
+   res = await client.from('doan_vien').update(payload).eq('id', d.id).select();
+  } else {
+   res = await client.from('doan_vien').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) {
+   d.id = res.data[0].id;
+  }
+  const idx = DB.dv.findIndex(x => x.id === d.id);
+  if (idx !== -1) DB.dv[idx] = d; else DB.dv.push(d);
+  return { ok: true };
+ },
+
+ async xoaDV(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('doan_vien').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.dv = DB.dv.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuKH(k) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.kh.findIndex(x => x.id === k.id);
+   if (idx !== -1) DB.kh[idx] = k; else DB.kh.push(k);
+   return { ok: true };
+  }
+  const payload = {
+   ma: k.ma,
+   ten: k.ten,
+   crit: k.crit,
+   ban: k.ban,
+   pt_ids: k.ptIds,
+   pt_id: k.ptId,
+   bat_dau: k.batDau,
+   han_chot: k.hanChot,
+   hien_thi: k.hienThi,
+   tien_do: k.tienDo,
+   diem: k.diem,
+   chi_tieu: k.chiTieu,
+   don_vi: k.donVi,
+   bat_buoc: k.batBuoc,
+   ket_qua: k.ketQua,
+   mc: k.mc,
+   note: k.note
+  };
+  let res;
+  if (k.id && DB.kh.some(x => x.id === k.id)) {
+   res = await client.from('ke_hoach').update(payload).eq('id', k.id).select();
+  } else {
+   res = await client.from('ke_hoach').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) k.id = res.data[0].id;
+  const idx = DB.kh.findIndex(x => x.id === k.id);
+  if (idx !== -1) DB.kh[idx] = k; else DB.kh.push(k);
+  return { ok: true };
+ },
+
+ async xoaKH(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('ke_hoach').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.kh = DB.kh.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuCD(c) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.cd.findIndex(x => x.id === c.id);
+   if (idx !== -1) DB.cd[idx] = c; else DB.cd.push(c);
+   return { ok: true };
+  }
+  const payload = {
+   ma: c.ma,
+   ten: c.ten,
+   nganh: c.nganh,
+   si_so: c.siSo,
+   bt: c.bt,
+   sdt: c.sdt,
+   diem_tru: c.diemTru
+  };
+  let res;
+  if (c.id && DB.cd.some(x => x.id === c.id)) {
+   res = await client.from('chi_doan').update(payload).eq('id', c.id).select();
+  } else {
+   res = await client.from('chi_doan').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) c.id = res.data[0].id;
+  const idx = DB.cd.findIndex(x => x.id === c.id);
+  if (idx !== -1) DB.cd[idx] = c; else DB.cd.push(c);
+  return { ok: true };
+ },
+
+ async xoaCD(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('chi_doan').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.cd = DB.cd.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuNS(u) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.ns.findIndex(x => x.id === u.id);
+   if (idx !== -1) DB.ns[idx] = u; else DB.ns.push(u);
+   return { ok: true };
+  }
+  const payload = {
+   ten: u.ten,
+   vai_tro: u.vaiTro,
+   ban: u.ban,
+   lop: u.lop,
+   sdt: u.sdt,
+   mssv: u.mssv,
+   fb: u.fb,
+   bch: u.bch ? 1 : 0,
+   nhom: u.nhom || 'bcm',
+   theo_doi: u.theoDoi || []
+  };
+  let res;
+  if (u.id && DB.ns.some(x => x.id === u.id)) {
+   res = await client.from('nhan_su').update(payload).eq('id', u.id).select();
+  } else {
+   res = await client.from('nhan_su').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) u.id = res.data[0].id;
+  const idx = DB.ns.findIndex(x => x.id === u.id);
+  if (idx !== -1) DB.ns[idx] = u; else DB.ns.push(u);
+  return { ok: true };
+ },
+
+ async xoaNS(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('nhan_su').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.ns = DB.ns.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuHop(h) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (!client) {
+   const idx = DB.hop.findIndex(x => x.id === h.id);
+   if (idx !== -1) DB.hop[idx] = h; else DB.hop.push(h);
+   return { ok: true };
+  }
+  const payload = {
+   ten: h.ten,
+   ngay: h.ngay,
+   noi_dung: h.noiDung,
+   bien_ban: h.bienBan
+  };
+  let res;
+  if (h.id && DB.hop.some(x => x.id === h.id)) {
+   res = await client.from('sinh_hoat').update(payload).eq('id', h.id).select();
+  } else {
+   res = await client.from('sinh_hoat').insert(payload).select();
+  }
+  if (res.error) throw res.error;
+  if (res.data && res.data[0]) h.id = res.data[0].id;
+  const idx = DB.hop.findIndex(x => x.id === h.id);
+  if (idx !== -1) DB.hop[idx] = h; else DB.hop.push(h);
+  return { ok: true };
+ },
+
+ async xoaHop(id) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('sinh_hoat').delete().eq('id', id);
+   if (error) throw error;
+  }
+  DB.hop = DB.hop.filter(x => x.id !== id);
+  return { ok: true };
+ },
+
+ async luuDiemDanh(hopId, nsId, co, muon) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('diem_danh').upsert({
+    hop_id: hopId,
+    ns_id: nsId,
+    co: !!co,
+    muon: !!muon
+   });
+   if (error) throw error;
+  }
+  const idx = DB.dd.findIndex(x => x.hopId === hopId && x.nsId === nsId);
+  if (idx !== -1) {
+   DB.dd[idx].co = !!co;
+   DB.dd[idx].muon = !!muon;
+  } else {
+   DB.dd.push({ hopId, nsId, co: !!co, muon: !!muon });
+  }
+ },
+
+ async xoaDiemDanh(hopId, nsId) {
+  const client = window.getSupabaseClient ? window.getSupabaseClient() : null;
+  if (client) {
+   const { error } = await client.from('diem_danh').delete().match({
+    hop_id: hopId,
+    ns_id: nsId
+   });
+   if (error) throw error;
+  }
+  DB.dd = DB.dd.filter(x => !(x.hopId === hopId && x.nsId === nsId));
+ }
 };
 
-/** Khởi tạo dữ liệu thật hoặc khôi phục mẫu */
-function khoiTaoDataThat(cheDo='giu-khung'){
- if(cheDo==='demo'){
-  DB=seed();
- } else if(cheDo==='giu-khung'){
-  // Giữ danh sách chi đoàn, nhân sự LCĐ & tài khoản người dùng hiện tại, xóa toàn bộ hoạt động, báo cáo, điểm danh, đoàn viên
-  const cdCu = (DB.cd && DB.cd.length) ? DB.cd.map(c=>({...c, diemTru:0})) : seed().cd;
-  const nsCu = (DB.ns && DB.ns.length) ? DB.ns : seed().ns;
-  const usersCu = (DB.users && DB.users.length) ? DB.users : seedDefaultUsers(cdCu);
-  DB={
-   cd: cdCu,
-   ns: nsCu,
-   users: usersCu,
-   kh: [],
-   hop: [],
-   dd: [],
-   bc: [],
-   hd: [],
-   dv: []
-  };
- } else if(cheDo==='trang-tinh'){
-  // Trắng tinh vẫn bảo toàn tài khoản quản trị để không bị khoá ngoài hệ thống
-  const adminUsers = (DB.users && DB.users.length) 
-   ? DB.users.filter(u=>u.role==='admin'||u.role==='lcd') 
-   : [
-      {id:1, username:'admin', password:'admin123', ten:'Quản trị viên hệ thống', role:'admin', cdId:null, email:'admin@is.vnu.edu.vn', sdt:'0988888888', active:true, ngayTao:TODAY, lanCuoi:''}
-     ];
-  DB={cd:[], ns:[], users:adminUsers, kh:[], hop:[], dd:[], bc:[], hd:[], dv:[]};
- }
- save();
-}
+/* Giữ hàm save() đồng bộ bộ nhớ */
+const save = () => {};
 
-/** Xuất toàn bộ CSDL ra file JSON backup */
-function xuatBackupJSON(){
- const json=JSON.stringify(DB,null,2);
- const blob=new Blob([json],{type:'application/json;charset=utf-8'});
- const url=URL.createObjectURL(blob);
- const a=document.createElement('a');
- a.href=url;
- a.download=`lcdkhud_backup_${TODAY}.json`;
+/* ===================== SAO LƯU & PHỤC HỒI AN TOÀN ===================== */
+
+/** Xuất bản sao lưu JSON (CHỈ xuất dữ liệu nghiệp vụ đã được máy chủ cho phép đọc; KHÔNG xuất users, mật khẩu hay secrets) */
+function xuatBackupJSON() {
+ const backupData = {
+  version: '2.3',
+  date: TODAY,
+  data: {
+   cd: DB.cd || [],
+   ns: DB.ns || [],
+   kh: DB.kh || [],
+   hop: DB.hop || [],
+   dd: DB.dd || [],
+   bc: DB.bc || [],
+   hd: DB.hd || [],
+   dv: DB.dv || []
+  }
+ };
+
+ const json = JSON.stringify(backupData, null, 2);
+ const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = `lcdkhud_backup_${TODAY}.json`;
  document.body.appendChild(a);
  a.click();
  a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),30000);
+ setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-/** Nhập toàn bộ CSDL từ file JSON backup */
-function nhapBackupJSON(file){
- return new Promise((resolve,reject)=>{
-  const r=new FileReader();
-  r.onload=e=>{
-   try{
-    const d=JSON.parse(e.target.result);
-    if(!d||typeof d!=='object'||!Array.isArray(d.cd)||!Array.isArray(d.kh)){
-     return reject(new Error('File không đúng cấu trúc dữ liệu Sổ tay LCĐ KHUD.'));
+/** Nhập dữ liệu từ file JSON backup với kiểm tra ranh giới bảo mật nghiêm ngặt */
+function nhapBackupJSON(file) {
+ return new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = async e => {
+   try {
+    const raw = JSON.parse(e.target.result);
+    if (!raw || typeof raw !== 'object') {
+     return reject(new Error('File không hợp lệ hoặc không có cấu trúc JSON.'));
     }
-    if(!d.users || !Array.isArray(d.users) || d.users.length === 0){
-     d.users = seedDefaultUsers(d.cd || []);
+
+    const payload = raw.data || raw;
+
+    // Chặn hoàn toàn việc chèn tài khoản/quyền từ file JSON client
+    delete payload.users;
+    delete payload.profiles;
+    delete payload.auth;
+
+    if (!Array.isArray(payload.cd) || !Array.isArray(payload.kh)) {
+     return reject(new Error('File không đúng cấu trúc dữ liệu Sổ tay LCĐ KHUD (thiếu danh sách chi đoàn hoặc kế hoạch).'));
     }
-    DB=d;
-    save();
-    resolve(d);
-   }catch(err){
-    reject(new Error('File JSON bị lỗi cú pháp: '+err.message));
+
+    // Nếu người dùng là Chi đoàn: kiểm tra phạm vi chỉ được phục hồi dữ liệu thuộc chi đoàn mình
+    if (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.role === 'cd') {
+     const myCdId = auth.currentUser.cdId;
+     if (payload.dv) payload.dv = payload.dv.filter(x => x.cdId === myCdId);
+     if (payload.bc) payload.bc = payload.bc.filter(x => x.cdId === myCdId);
+     if (payload.hd) payload.hd = payload.hd.filter(x => x.cdId === myCdId);
+     delete payload.cd;
+     delete payload.ns;
+     delete payload.kh;
+     delete payload.hop;
+     delete payload.dd;
+    }
+
+    // Gán dữ liệu vào bộ nhớ sau khi lọc an toàn
+    if (payload.cd) DB.cd = payload.cd;
+    if (payload.ns) DB.ns = payload.ns;
+    if (payload.kh) DB.kh = payload.kh;
+    if (payload.hop) DB.hop = payload.hop;
+    if (payload.dd) DB.dd = payload.dd;
+    if (payload.bc) DB.bc = payload.bc;
+    if (payload.hd) DB.hd = payload.hd;
+    if (payload.dv) DB.dv = payload.dv;
+
+    resolve(DB);
+   } catch (err) {
+    reject(new Error('Lỗi khi đọc file sao lưu: ' + err.message));
    }
   };
-  r.onerror=()=>reject(new Error('Không thể đọc file.'));
+  r.onerror = () => reject(new Error('Không thể đọc file sao lưu.'));
   r.readAsText(file);
  });
 }

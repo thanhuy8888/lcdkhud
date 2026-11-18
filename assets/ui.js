@@ -198,14 +198,7 @@ function layThongBao(){
  return list;
 }
 
-/** Hiển thị link mở trong tab mới + nút sửa nhanh link */
-function hienThiLink(url, label='Mở link', editAction=''){
- const clean=chuanHoaLink(url);
- if(!clean){
-  return `<span class="link-item"><span class="t2">(chưa có link)</span>${editAction?`<button type="button" class="btn-edit-link" onclick="${editAction}" title="Nhập link">+ Thêm link</button>`:''}</span>`;
- }
- return `<span class="link-item"><a href="${esc(clean)}" target="_blank" rel="noopener" class="link-badge" title="${esc(url)}">🔗 ${esc(label)}</a>${editAction?`<button type="button" class="btn-edit-link" onclick="${editAction}" title="Chỉnh sửa link">✏️ Sửa</button>`:''}</span>`;
-}
+
 
 /** Hộp thoại cập nhật link nhanh */
 function moSuaLink({tieuDe='Cập nhật link', url='', onSave}){
@@ -243,6 +236,13 @@ function moSuaLink({tieuDe='Cập nhật link', url='', onSave}){
 
 /** Đổi trạng thái báo cáo chi đoàn (ok / wait / no) */
 function doiTrangThaiBC(id, newSt){
+ if(typeof auth !== 'undefined'){
+  if(!auth.currentUser || auth.currentUser.role === 'cd' || !auth.coQuyen('duyet_bc')){
+   alert('Bạn không có quyền duyệt báo cáo.');
+   render();
+   return;
+  }
+ }
  const b = DB.bc.find(x => x.id === id);
  if(!b) return;
  if(newSt === 'no'){
@@ -253,25 +253,51 @@ function doiTrangThaiBC(id, newSt){
   b.nx = '';
  }
  b.status = newSt;
- save();
+ if(typeof dataApi !== 'undefined' && dataApi.luuBC){
+  dataApi.luuBC(b).catch(err => {
+   alert('Lỗi cập nhật máy chủ: ' + err.message);
+  });
+ }
  render();
 }
 
 /** Đổi trạng thái hoạt động tự tổ chức (ok / wait / no) */
 function doiTrangThaiHD(id, newSt){
+ if(typeof auth !== 'undefined'){
+  if(!auth.currentUser || auth.currentUser.role === 'cd' || !auth.coQuyen('duyet_bc')){
+   alert('Bạn không có quyền duyệt hoạt động.');
+   render();
+   return;
+  }
+ }
  const h = DB.hd.find(x => x.id === id);
  if(!h) return;
  h.status = newSt;
- save();
+ if(typeof dataApi !== 'undefined' && dataApi.luuHD){
+  dataApi.luuHD(h).catch(err => {
+   alert('Lỗi cập nhật máy chủ: ' + err.message);
+  });
+ }
  render();
 }
 
 /** Đổi tiến độ đầu việc timeline (chua / dang / xong) */
 function doiTienDoKH(id, newTd){
+ if(typeof auth !== 'undefined'){
+  if(!auth.currentUser || auth.currentUser.role === 'cd' || !auth.coQuyen('ql_kh')){
+   alert('Bạn không có quyền cập nhật tiến độ công tác LCĐ.');
+   render();
+   return;
+  }
+ }
  const k = KH(id);
  if(!k) return;
  k.tienDo = newTd;
- save();
+ if(typeof dataApi !== 'undefined' && dataApi.luuKH){
+  dataApi.luuKH(k).catch(err => {
+   alert('Lỗi cập nhật máy chủ: ' + err.message);
+  });
+ }
  render();
 }
 
@@ -559,15 +585,19 @@ const MENU={
 const PAGES={};
 function go(p,extra){Object.assign(state,extra||{});state.page=p;render()}
 function render(){
- if(typeof auth !== 'undefined' && !auth.currentUser){
+ if(typeof auth === 'undefined' || !auth){
+  document.body.innerHTML = '<div style="padding:48px 20px;text-align:center;font-family:sans-serif;color:var(--crit,#ef4444)"><h2>LỖI BẢO MẬT HỆ THỐNG</h2><p>Không tìm thấy module xác thực (auth.js). Ứng dụng đã bị khóa để bảo vệ dữ liệu.</p></div>';
+  return;
+ }
+ if(!auth.currentUser){
   document.body.classList.add('is-login-screen');
-  main.innerHTML = auth.renderLoginScreen();
+  main.innerHTML = auth.renderTrangDangNhap ? auth.renderTrangDangNhap() : auth.renderLoginScreen();
   window.scrollTo(0,0);
   return;
  }
  document.body.classList.remove('is-login-screen');
 
- const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+ const curUser = auth.currentUser;
  const roleBoxEl = document.querySelector('.rolebox');
 
  if(curUser && roleBoxEl){
@@ -579,7 +609,7 @@ function render(){
     <div class="user-meta">
      <b class="user-name" title="${esc(curUser.ten)}">${esc(curUser.ten)}</b>
      <div style="margin-top:2px"><span class="pill ${rInfo.badge}" style="font-size:10px;padding:1px 6px">${esc(rInfo.ten)}</span></div>
-     <span class="user-uname">@${esc(curUser.username)}</span>
+     <span class="user-uname">${esc(curUser.email || '')}</span>
     </div>
    </div>
    <div class="user-actions">
@@ -617,13 +647,11 @@ function render(){
    </div>`;
    roleBoxEl.innerHTML = userCardHtml;
   }
- } else if(roleSel) {
-  roleSel.innerHTML=`<option value="lcd"${state.role==='lcd'?' selected':''}>BCH Liên chi đoàn</option>`+
-   DB.cd.map(c=>`<option value="${c.id}"${state.role==='cd'&&state.cdId===c.id?' selected':''}>BCH ${esc(c.ma)}</option>`).join('');
  }
 
  if(curUser && curUser.role === 'cd'){
   state.role = 'cd';
+  state.cdId = curUser.cdId || 1;
   if(state.page === 'users' || state.page === 'duyet' || state.page === 'hoatdong' || state.page === 'bch' || state.page === 'sinhhoat' || state.page === 'sosanh' || state.page === 'matran'){
    state.page = 'tongquan';
   }
@@ -703,17 +731,34 @@ document.addEventListener('click',e=>{
  }
 });
 
-roleSel.addEventListener('change',e=>{
- const v=e.target.value;
- if(v==='lcd'){state.role='lcd';state.page='tongquan'}
- else{state.role='cd';state.cdId=+v;state.page='tongquan'}
- render();
-});
+if(roleSel){
+ roleSel.addEventListener('change',e=>{
+  if(typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.role === 'cd'){
+   state.role = 'cd';
+   state.cdId = auth.currentUser.cdId || 1;
+   render();
+   return;
+  }
+  const v=e.target.value;
+  if(v==='lcd'){state.role='lcd';state.page='tongquan'}
+  else{state.role='cd';state.cdId=+v;state.page='tongquan'}
+  render();
+ });
+}
 themeBtn.addEventListener('click',()=>{
  const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
  document.documentElement.dataset.theme=cur==='dark'?'light':'dark';
 });
-resetBtn.addEventListener('click',()=>{xacNhan('Khôi phục dữ liệu mẫu?','Mọi thay đổi bạn vừa nhập sẽ mất.',()=>{DB=seed();save();render()})});
+resetBtn.addEventListener('click',()=>{
+ if(typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.role !== 'admin'){
+  alert('Chỉ Quản trị viên hệ thống (Admin) mới có quyền khôi phục dữ liệu mẫu.');
+  return;
+ }
+ xacNhan('Khôi phục dữ liệu mẫu?','Thao tác này chỉ ảnh hưởng dữ liệu trong phiên thử nghiệm.',()=>{DB=seed();render()});
+});
+window.formDoiMatKhauCaNhan = function(){
+ if(typeof formDoiMatKhau === 'function') formDoiMatKhau();
+};
 const dataMgmtBtn = document.getElementById('dataMgmtBtn');
 if(dataMgmtBtn) dataMgmtBtn.addEventListener('click', formQuanLyDuLieu);
 
