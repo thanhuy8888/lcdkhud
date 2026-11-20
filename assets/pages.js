@@ -1,6 +1,28 @@
 /* Các trang của BCH Liên chi đoàn và BCH chi đoàn, kèm hộp thoại nhập liệu. */
 /* ===================== TRANG — LIÊN CHI ĐOÀN ===================== */
 PAGES.tongquan=()=>state.role==='lcd'?lcdTongQuan():cdTongQuan();
+function sectionTongKet2526(){
+ return `
+ <section class="summary-spotlight" aria-label="Báo cáo tổng kết năm học 2025 – 2026">
+  <a href="summary/index.html" class="summary-spotlight-card">
+   <div class="summary-spotlight-body">
+    <span class="summary-spotlight-tag">Báo cáo chuyên đề · Năm học 2025 – 2026</span>
+    <h2 class="summary-spotlight-title">Tổng kết Công tác Đoàn &amp; Phong trào Thanh niên 2025 – 2026</h2>
+    <p class="summary-spotlight-desc">Trang báo cáo trực quan tổng hợp tiến độ 11 tháng, quy mô tổ chức và danh mục khen thưởng các cấp của Liên chi đoàn Khoa các Khoa học Ứng dụng.</p>
+    <div class="summary-spotlight-metrics">
+     <span class="summary-metric-chip"><b>37</b> hoạt động</span>
+     <span class="summary-metric-chip"><b>18</b> LCĐ tổ chức</span>
+     <span class="summary-metric-chip"><b>19</b> kết hợp Đoàn Trường</span>
+     <span class="summary-metric-chip summary-metric-amber"><b>23</b> đầu mục khen thưởng</span>
+    </div>
+   </div>
+   <div class="summary-spotlight-action">
+    <span class="summary-spotlight-cta">Mở trang tổng kết →</span>
+    <span class="summary-spotlight-hint">Xem toàn trang · 12/2025 – 11/2026</span>
+   </div>
+  </a>
+ </section>`;
+}
 function lcdTongQuan(){
  const xh=bangXH(),tb=Math.round(xh.reduce((s,c)=>s+c.tong,0)/xh.length);
  const choBc=DB.bc.filter(b=>b.status==='wait').map(b=>({t:'bc',id:b.id,khId:b.khId,cdId:b.cdId,ten:KH(b.khId).ma+' · '+KH(b.khId).ten,cdMa:CD(b.cdId).ma,so:b.soLuot+'/'+chiTieuSo(KH(b.khId),CD(b.cdId))+' lượt',ngay:b.ngayNop,mc:b.mc,treHan:b.treHan,crit:KH(b.khId).crit}));
@@ -49,6 +71,8 @@ function lcdTongQuan(){
    <div class="foot">Lượt đoàn viên toàn khoa</div>
   </div>
  </div>
+
+ ${sectionTongKet2526()}
 
  <!-- BỐ CỤC 2 CỘT CÂN ĐỐI, THOÁNG MẮT -->
  <div class="grid g2">
@@ -687,7 +711,8 @@ PAGES.tongket=function(){
  const uuTu=DB.dv.filter(d=>d.drl>=90&&d.soHD>=5).sort((a,b)=>b.drl-a.drl);
  return `<div class="head"><img src="assets/logo.webp" alt="" style="width:54px;height:54px;border-radius:10px;background:#fff;padding:2px;object-fit:contain;border:1px solid var(--line)">
  <div><h1>Tổng kết nhiệm kỳ 2025 – 2027</h1>
-  <p class="sub">Bảng căn cứ xét khen thưởng chi đoàn và đoàn viên xuất sắc.</p></div></div>
+  <p class="sub">Bảng căn cứ xét khen thưởng chi đoàn và đoàn viên xuất sắc.</p></div>
+ <a href="summary/index.html" class="b-p end" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">Mở Báo cáo Tổng kết 2025 – 2026 →</a></div>
  <div class="note">Điểm KPI = tổng điểm 5 tiêu chí (mỗi tiêu chí tối đa 20) trừ điểm trừ của Liên chi đoàn.
   Điểm mỗi tiêu chí đến từ hai nguồn đã được duyệt: kế hoạch LCĐ giao (quy đổi theo tỷ lệ hoàn thành chỉ tiêu, trễ hạn còn ${TRE_PHAT*100}%) và hoạt động chi đoàn tự tổ chức.
   Xếp loại: Xuất sắc ≥ 90 · Tốt ≥ 80 · Khá ≥ 65 · Trung bình ≥ 50 · Yếu &lt; 50.</div>
@@ -856,6 +881,8 @@ function cdTongQuan(){
   ${tile('Lượt tham gia',k.luot,'Trung bình '+huyDong(c.id)+' lượt/sinh viên')}
   ${tile('Hồ sơ đang nộp',choDuyet.length+canSua.length,canSua.length?canSua.length+' hồ sơ cần sửa':'Đang chờ LCĐ duyệt')}
  </div>
+
+ ${sectionTongKet2526()}
 
  <!-- BIỂU ĐỒ VÀ TIẾN ĐỘ CHI TIẾT -->
  <div class="grid g2">

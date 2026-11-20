@@ -302,21 +302,6 @@ const auth = {
    <div class="login-brand-mid">
     <h1 class="login-hero-heading">Sổ tay<br>Liên chi đoàn</h1>
     <p class="login-hero-desc">Theo dõi công tác, hoạt động và đánh giá KPI chi đoàn.</p>
-    
-    <div class="login-art-wrap" aria-hidden="true">
-     <svg class="login-art-svg" viewBox="0 0 320 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <line x1="20" y1="16" x2="20" y2="144" stroke="#1E3A5F" stroke-width="2" stroke-dasharray="4 4" />
-      <circle cx="20" cy="32" r="5.5" fill="#0C2948" stroke="#38BDF8" stroke-width="2.5" />
-      <rect x="38" y="24" width="130" height="16" rx="4" fill="#1E3A5F" opacity="0.6" />
-      <rect x="178" y="28" width="54" height="8" rx="3" fill="#1E3A5F" opacity="0.3" />
-      <circle cx="20" cy="80" r="5.5" fill="#0C2948" stroke="#00A9E0" stroke-width="2.5" />
-      <rect x="38" y="72" width="165" height="16" rx="4" fill="#1E3A5F" opacity="0.6" />
-      <rect x="213" y="76" width="44" height="8" rx="3" fill="#1E3A5F" opacity="0.3" />
-      <circle cx="20" cy="128" r="5.5" fill="#0C2948" stroke="#38BDF8" stroke-width="2.5" />
-      <rect x="38" y="120" width="145" height="16" rx="4" fill="#1E3A5F" opacity="0.6" />
-      <rect x="193" y="124" width="60" height="8" rx="3" fill="#1E3A5F" opacity="0.3" />
-     </svg>
-    </div>
    </div>
 
    <div class="login-brand-bottom">

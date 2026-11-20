@@ -578,9 +578,10 @@ const state={role:'lcd',cdId:1,page:'tongquan',khId:null,q:'',cf:'all',df:'wait'
 const MENU={
  lcd:[['','BCH Liên chi đoàn'],['tongquan','Tổng quan'],['hoatdong','Hoạt động triển khai'],['matran','Ma trận theo dõi'],['duyet','Duyệt hồ sơ'],['sosanh','So sánh chi đoàn'],
   ['','Con người'],['bch','Nhân sự & BCH LCĐ'],['sinhhoat','Sinh hoạt & điểm danh'],['nhansu','Nhân sự toàn khoa'],
-  ['','Kết xuất'],['excel','Nhập / xuất Excel'],['tongket','Tổng kết năm học'],
+  ['','Kết xuất'],['excel','Nhập / xuất Excel'],['tongket','Tổng kết năm học'],['href:summary/index.html','Báo cáo tổng kết 2025 – 2026'],
   ['','Hệ thống & Phân quyền'],['users','Quản trị tài khoản']],
- cd:[['','BCH Chi đoàn'],['tongquan','Tổng quan chi đoàn'],['nhiemvu','Hoạt động được giao'],['tuchuc','Hoạt động tự tổ chức'],['kpi','KPI chi tiết'],['nhansu','Đoàn viên chi đoàn'],['excel','Nhập / xuất Excel']]
+ cd:[['','BCH Chi đoàn'],['tongquan','Tổng quan chi đoàn'],['nhiemvu','Hoạt động được giao'],['tuchuc','Hoạt động tự tổ chức'],['kpi','KPI chi tiết'],['nhansu','Đoàn viên chi đoàn'],['excel','Nhập / xuất Excel'],
+  ['','Báo cáo & Tổng kết'],['href:summary/index.html','Tổng kết năm học 2025 – 2026']]
 };
 const PAGES={};
 function go(p,extra){Object.assign(state,extra||{});state.page=p;render()}
@@ -658,9 +659,14 @@ function render(){
  }
 
  const menuItems = MENU[state.role] || MENU.lcd;
- nav.innerHTML=menuItems.map(([p,t])=>p
-  ?`<a href="#${p}"${state.page===p||(p==='hoatdong'&&state.page==='khct')?' aria-current="page"':''} data-go="${p}">${t}</a>`
-  :`<div class="grp">${t}</div>`).join('');
+ nav.innerHTML=menuItems.map(([p,t])=>{
+  if(!p) return `<div class="grp">${t}</div>`;
+  if(p.startsWith('href:')){
+   const url = p.slice(5);
+   return `<a href="${esc(url)}" class="nav-standalone">${t}<span class="nav-ext-arrow" aria-hidden="true">↗</span></a>`;
+  }
+  return `<a href="#${p}"${state.page===p||(p==='hoatdong'&&state.page==='khct')?' aria-current="page"':''} data-go="${p}">${t}</a>`;
+ }).join('');
  main.innerHTML=topBarHtml()+(PAGES[state.page]?PAGES[state.page]():PAGES.tongquan());
  window.scrollTo(0,0);
 }
