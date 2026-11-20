@@ -958,6 +958,138 @@ body.is-login-screen .main {
   background:color-mix(in srgb,var(--accent) 3%,var(--surface-2));
   transform:translateX(2px);
 }
+
+/* ===================== SECTION TỔNG KẾT NĂM HỌC 2025 - 2026 ===================== */
+.summary-spotlight{
+  margin-bottom:14px;
+}
+.summary-spotlight-card{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  flex-wrap:wrap;
+  text-decoration:none;
+  color:inherit;
+  background:linear-gradient(135deg,var(--surface) 0%,color-mix(in srgb,var(--accent) 6%,var(--surface)) 100%);
+  border:1px solid color-mix(in srgb,var(--accent) 26%,var(--line));
+  border-left:4px solid var(--accent);
+  border-radius:12px;
+  padding:18px 20px;
+  box-shadow:var(--shadow);
+  transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+.summary-spotlight-card:hover{
+  border-color:var(--accent);
+  transform:translateY(-1px);
+}
+.summary-spotlight-card:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+.summary-spotlight-body{
+  flex:1;
+  min-width:240px;
+}
+.summary-spotlight-tag{
+  display:inline-block;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--accent);
+}
+.summary-spotlight-title{
+  font-family:var(--fd);
+  font-size:16.5px;
+  font-weight:700;
+  color:var(--ink);
+  margin:4px 0 6px;
+  line-height:1.35;
+}
+.summary-spotlight-desc{
+  font-size:13px;
+  color:var(--sec);
+  margin:0 0 12px;
+  max-width:720px;
+  line-height:1.5;
+}
+.summary-spotlight-metrics{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.summary-metric-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 9px;
+  border-radius:6px;
+  font-size:12px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  color:var(--sec);
+}
+.summary-metric-chip b{
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.summary-metric-amber{
+  border-color:color-mix(in srgb,var(--gold) 45%,var(--line));
+  color:#b45309;
+}
+:root[data-theme="dark"] .summary-metric-amber{
+  color:var(--gold);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .summary-metric-amber{
+    color:var(--gold);
+  }
+}
+.summary-spotlight-action{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  flex-shrink:0;
+}
+.summary-spotlight-cta{
+  background:var(--accent);
+  color:var(--on-accent);
+  padding:9px 15px;
+  border-radius:9px;
+  font-size:13px;
+  font-weight:600;
+  white-space:nowrap;
+  transition:background-color .15s ease;
+}
+.summary-spotlight-card:hover .summary-spotlight-cta{
+  background:var(--accent-2);
+}
+.summary-spotlight-hint{
+  font-size:11.5px;
+  color:var(--muted);
+}
+.nav a.nav-standalone{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+.nav-ext-arrow{
+  opacity:.7;
+  font-size:12px;
+}
+@media (max-width:760px){
+  .summary-spotlight-action{
+    align-items:flex-start;
+    width:100%;
+  }
+  .summary-spotlight-cta{
+    width:100%;
+    text-align:center;
+  }
+}
 </style>
 
 <div class="app">
@@ -2598,9 +2730,10 @@ const state={role:'lcd',cdId:1,page:'tongquan',khId:null,q:'',cf:'all',df:'wait'
 const MENU={
  lcd:[['','BCH Liên chi đoàn'],['tongquan','Tổng quan'],['hoatdong','Hoạt động triển khai'],['matran','Ma trận theo dõi'],['duyet','Duyệt hồ sơ'],['sosanh','So sánh chi đoàn'],
   ['','Con người'],['bch','Nhân sự & BCH LCĐ'],['sinhhoat','Sinh hoạt & điểm danh'],['nhansu','Nhân sự toàn khoa'],
-  ['','Kết xuất'],['excel','Nhập / xuất Excel'],['tongket','Tổng kết năm học'],
+  ['','Kết xuất'],['excel','Nhập / xuất Excel'],['tongket','Tổng kết năm học'],['href:summary/index.html','Báo cáo tổng kết 2025 – 2026'],
   ['','Hệ thống & Phân quyền'],['users','Quản trị tài khoản']],
- cd:[['','BCH Chi đoàn'],['tongquan','Tổng quan chi đoàn'],['nhiemvu','Hoạt động được giao'],['tuchuc','Hoạt động tự tổ chức'],['kpi','KPI chi tiết'],['nhansu','Đoàn viên chi đoàn'],['excel','Nhập / xuất Excel']]
+ cd:[['','BCH Chi đoàn'],['tongquan','Tổng quan chi đoàn'],['nhiemvu','Hoạt động được giao'],['tuchuc','Hoạt động tự tổ chức'],['kpi','KPI chi tiết'],['nhansu','Đoàn viên chi đoàn'],['excel','Nhập / xuất Excel'],
+  ['','Báo cáo & Tổng kết'],['href:summary/index.html','Tổng kết năm học 2025 – 2026']]
 };
 const PAGES={};
 function go(p,extra){Object.assign(state,extra||{});state.page=p;render()}
@@ -2678,9 +2811,14 @@ function render(){
  }
 
  const menuItems = MENU[state.role] || MENU.lcd;
- nav.innerHTML=menuItems.map(([p,t])=>p
-  ?`<a href="#${p}"${state.page===p||(p==='hoatdong'&&state.page==='khct')?' aria-current="page"':''} data-go="${p}">${t}</a>`
-  :`<div class="grp">${t}</div>`).join('');
+ nav.innerHTML=menuItems.map(([p,t])=>{
+  if(!p) return `<div class="grp">${t}</div>`;
+  if(p.startsWith('href:')){
+   const url = p.slice(5);
+   return `<a href="${esc(url)}" class="nav-standalone">${t}<span class="nav-ext-arrow" aria-hidden="true">↗</span></a>`;
+  }
+  return `<a href="#${p}"${state.page===p||(p==='hoatdong'&&state.page==='khct')?' aria-current="page"':''} data-go="${p}">${t}</a>`;
+ }).join('');
  main.innerHTML=topBarHtml()+(PAGES[state.page]?PAGES[state.page]():PAGES.tongquan());
  window.scrollTo(0,0);
 }
@@ -3669,6 +3807,28 @@ const isLoggedIn = () => typeof auth !== 'undefined' && auth.isLoggedIn();
 /* Các trang của BCH Liên chi đoàn và BCH chi đoàn, kèm hộp thoại nhập liệu. */
 /* ===================== TRANG — LIÊN CHI ĐOÀN ===================== */
 PAGES.tongquan=()=>state.role==='lcd'?lcdTongQuan():cdTongQuan();
+function sectionTongKet2526(){
+ return `
+ <section class="summary-spotlight" aria-label="Báo cáo tổng kết năm học 2025 – 2026">
+  <a href="summary/index.html" class="summary-spotlight-card">
+   <div class="summary-spotlight-body">
+    <span class="summary-spotlight-tag">Báo cáo chuyên đề · Năm học 2025 – 2026</span>
+    <h2 class="summary-spotlight-title">Tổng kết Công tác Đoàn &amp; Phong trào Thanh niên 2025 – 2026</h2>
+    <p class="summary-spotlight-desc">Trang báo cáo trực quan tổng hợp tiến độ 11 tháng, quy mô tổ chức và danh mục khen thưởng các cấp của Liên chi đoàn Khoa các Khoa học Ứng dụng.</p>
+    <div class="summary-spotlight-metrics">
+     <span class="summary-metric-chip"><b>37</b> hoạt động</span>
+     <span class="summary-metric-chip"><b>18</b> LCĐ tổ chức</span>
+     <span class="summary-metric-chip"><b>19</b> kết hợp Đoàn Trường</span>
+     <span class="summary-metric-chip summary-metric-amber"><b>23</b> đầu mục khen thưởng</span>
+    </div>
+   </div>
+   <div class="summary-spotlight-action">
+    <span class="summary-spotlight-cta">Mở trang tổng kết →</span>
+    <span class="summary-spotlight-hint">Xem toàn trang · 12/2025 – 11/2026</span>
+   </div>
+  </a>
+ </section>`;
+}
 function lcdTongQuan(){
  const xh=bangXH(),tb=Math.round(xh.reduce((s,c)=>s+c.tong,0)/xh.length);
  const choBc=DB.bc.filter(b=>b.status==='wait').map(b=>({t:'bc',id:b.id,khId:b.khId,cdId:b.cdId,ten:KH(b.khId).ma+' · '+KH(b.khId).ten,cdMa:CD(b.cdId).ma,so:b.soLuot+'/'+chiTieuSo(KH(b.khId),CD(b.cdId))+' lượt',ngay:b.ngayNop,mc:b.mc,treHan:b.treHan,crit:KH(b.khId).crit}));
@@ -3717,6 +3877,8 @@ function lcdTongQuan(){
    <div class="foot">Lượt đoàn viên toàn khoa</div>
   </div>
  </div>
+
+ ${sectionTongKet2526()}
 
  <!-- BỐ CỤC 2 CỘT CÂN ĐỐI, THOÁNG MẮT -->
  <div class="grid g2">
@@ -4355,7 +4517,8 @@ PAGES.tongket=function(){
  const uuTu=DB.dv.filter(d=>d.drl>=90&&d.soHD>=5).sort((a,b)=>b.drl-a.drl);
  return `<div class="head"><img src="assets/logo.webp" alt="" style="width:54px;height:54px;border-radius:10px;background:#fff;padding:2px;object-fit:contain;border:1px solid var(--line)">
  <div><h1>Tổng kết nhiệm kỳ 2025 – 2027</h1>
-  <p class="sub">Bảng căn cứ xét khen thưởng chi đoàn và đoàn viên xuất sắc.</p></div></div>
+  <p class="sub">Bảng căn cứ xét khen thưởng chi đoàn và đoàn viên xuất sắc.</p></div>
+ <a href="summary/index.html" class="b-p end" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">Mở Báo cáo Tổng kết 2025 – 2026 →</a></div>
  <div class="note">Điểm KPI = tổng điểm 5 tiêu chí (mỗi tiêu chí tối đa 20) trừ điểm trừ của Liên chi đoàn.
   Điểm mỗi tiêu chí đến từ hai nguồn đã được duyệt: kế hoạch LCĐ giao (quy đổi theo tỷ lệ hoàn thành chỉ tiêu, trễ hạn còn ${TRE_PHAT*100}%) và hoạt động chi đoàn tự tổ chức.
   Xếp loại: Xuất sắc ≥ 90 · Tốt ≥ 80 · Khá ≥ 65 · Trung bình ≥ 50 · Yếu &lt; 50.</div>
@@ -4524,6 +4687,8 @@ function cdTongQuan(){
   ${tile('Lượt tham gia',k.luot,'Trung bình '+huyDong(c.id)+' lượt/sinh viên')}
   ${tile('Hồ sơ đang nộp',choDuyet.length+canSua.length,canSua.length?canSua.length+' hồ sơ cần sửa':'Đang chờ LCĐ duyệt')}
  </div>
+
+ ${sectionTongKet2526()}
 
  <!-- BIỂU ĐỒ VÀ TIẾN ĐỘ CHI TIẾT -->
  <div class="grid g2">
