@@ -29,11 +29,7 @@ PAGES.sinhhoat = function () {
     tieuDe: 'Biên bản họp ' + dmy(h.ngay),
     url: h.bienBan,
     onSave: async v => {
-     h.bienBan = v;
-     if (typeof dataApi !== 'undefined' && dataApi.luuHop) {
-      try { await dataApi.luuHop(h); } catch (e) { console.error(e); }
-     }
-     save();
+     await dataApi.luuHop({ ...h, bienBan: v }, { isUpdate: true });
      render();
     }
    } : null) + '<br>'
@@ -42,11 +38,7 @@ PAGES.sinhhoat = function () {
      tieuDe: 'Biên bản họp ' + dmy(h.ngay),
      url: h.bienBan,
      onSave: async v => {
-      h.bienBan = v;
-      if (typeof dataApi !== 'undefined' && dataApi.luuHop) {
-       try { await dataApi.luuHop(h); } catch (e) { console.error(e); }
-      }
-      save();
+      await dataApi.luuHop({ ...h, bienBan: v }, { isUpdate: true });
       render();
      }
     });
@@ -114,61 +106,68 @@ document.addEventListener('click', e => {
  if (state.role === 'cd' || (!coQuyen('ql_nhansu') && !isAdmin())) return;
  const [h, n] = c.dataset.dd.split('-').map(Number);
  doiDiemDanh(h, n);
- save();
- render();
 });
 
 /** Xoay một ô điểm danh: chưa điểm danh → có mặt → đi muộn → vắng → chưa điểm danh. */
 function doiDiemDanh(hopId, nsId) {
- if (state.role === 'cd' || (state.user && !coQuyen('ql_nhansu') && !isAdmin())) return;
+ if (!window.__SELF_CHECK_MODE__ && (state.role === 'cd' || (typeof auth !== 'undefined' && auth.currentUser && !coQuyen('ql_nhansu') && !isAdmin()))) return;
  const d = ddOf(hopId, nsId);
+ const snap = d ? { ...d } : null;
+ let opPromise = null;
  if (!d) {
   DB.dd.push({ hopId, nsId, co: true, muon: false });
-  if (typeof dataApi !== 'undefined' && dataApi.luuDiemDanh) {
-   dataApi.luuDiemDanh(hopId, nsId, true, false).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.luuDiemDanh(hopId, nsId, true, false);
  } else if (d.co && !d.muon) {
   d.muon = true;
-  if (typeof dataApi !== 'undefined' && dataApi.luuDiemDanh) {
-   dataApi.luuDiemDanh(hopId, nsId, true, true).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.luuDiemDanh(hopId, nsId, true, true);
  } else if (d.co && d.muon) {
   d.co = false;
   d.muon = false;
-  if (typeof dataApi !== 'undefined' && dataApi.luuDiemDanh) {
-   dataApi.luuDiemDanh(hopId, nsId, false, false).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.luuDiemDanh(hopId, nsId, false, false);
  } else {
   DB.dd = DB.dd.filter(x => x !== d);
-  if (typeof dataApi !== 'undefined' && dataApi.xoaDiemDanh) {
-   dataApi.xoaDiemDanh(hopId, nsId).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.xoaDiemDanh(hopId, nsId);
+ }
+ if (window.__SELF_CHECK_MODE__) return;
+ render();
+ if (opPromise) {
+  return opPromise.catch(err => {
+   DB.dd = DB.dd.filter(x => !(x.hopId === hopId && x.nsId === nsId));
+   if (snap) DB.dd.push(snap);
+   alert('Lỗi lưu điểm danh lên máy chủ (đã hoàn tác): ' + (err.message || err));
+   render();
+  });
  }
 }
 
 /** Đặt thẳng một trạng thái: 'co' | 'muon' | 'vang' | 'trong'. */
 function datDiemDanh(hopId, nsId, tt) {
- if (state.role === 'cd' || (state.user && !coQuyen('ql_nhansu') && !isAdmin())) return;
+ if (!window.__SELF_CHECK_MODE__ && (state.role === 'cd' || (typeof auth !== 'undefined' && auth.currentUser && !coQuyen('ql_nhansu') && !isAdmin()))) return;
+ const prev = ddOf(hopId, nsId);
+ const snap = prev ? { ...prev } : null;
  DB.dd = DB.dd.filter(d => !(d.hopId === hopId && d.nsId === nsId));
+ let opPromise = null;
  if (tt === 'co') {
   DB.dd.push({ hopId, nsId, co: true, muon: false });
-  if (typeof dataApi !== 'undefined' && dataApi.luuDiemDanh) {
-   dataApi.luuDiemDanh(hopId, nsId, true, false).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.luuDiemDanh(hopId, nsId, true, false);
  } else if (tt === 'muon') {
   DB.dd.push({ hopId, nsId, co: true, muon: true });
-  if (typeof dataApi !== 'undefined' && dataApi.luuDiemDanh) {
-   dataApi.luuDiemDanh(hopId, nsId, true, true).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.luuDiemDanh(hopId, nsId, true, true);
  } else if (tt === 'vang') {
   DB.dd.push({ hopId, nsId, co: false, muon: false });
-  if (typeof dataApi !== 'undefined' && dataApi.luuDiemDanh) {
-   dataApi.luuDiemDanh(hopId, nsId, false, false).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.luuDiemDanh(hopId, nsId, false, false);
  } else if (tt === 'trong') {
-  if (typeof dataApi !== 'undefined' && dataApi.xoaDiemDanh) {
-   dataApi.xoaDiemDanh(hopId, nsId).catch(e => console.error(e));
-  }
+  if (!window.__SELF_CHECK_MODE__) opPromise = dataApi.xoaDiemDanh(hopId, nsId);
+ }
+ if (window.__SELF_CHECK_MODE__) return;
+ if (opPromise) {
+  return opPromise.catch(err => {
+   DB.dd = DB.dd.filter(x => !(x.hopId === hopId && x.nsId === nsId));
+   if (snap) DB.dd.push(snap);
+   alert('Lỗi lưu điểm danh lên máy chủ (đã hoàn tác): ' + (err.message || err));
+   render();
+   throw err;
+  });
  }
 }
 
@@ -208,14 +207,41 @@ function formDiemDanh(hopId) {
  <div class="row" style="margin-top:12px"><button type="button" class="b-p end" id="dong_dd">Xong</button></div>`;
  dlg.showModal();
 
- dlgBody.querySelector('#btn_tat_ca_co').onclick = () => {
-  DB.ns.forEach(u => datDiemDanh(hopId, u.id, 'co'));
-  save(); veDiemDanh(); render();
+ const btnAll = dlgBody.querySelector('#btn_tat_ca_co');
+ const btnClear = dlgBody.querySelector('#btn_xoa_tat_ca');
+
+ btnAll.onclick = async () => {
+  btnAll.disabled = true;
+  btnClear.disabled = true;
+  btnAll.textContent = 'Đang lưu...';
+  try {
+   await dataApi.luuDiemDanhHangLoat(hopId, 'co');
+   veDiemDanh();
+   render();
+  } catch (err) {
+   alert('Điểm danh hàng loạt thất bại: ' + (err.message || err));
+  } finally {
+   btnAll.disabled = false;
+   btnClear.disabled = false;
+   btnAll.textContent = 'Đánh dấu tất cả có mặt';
+  }
  };
 
- dlgBody.querySelector('#btn_xoa_tat_ca').onclick = () => {
-  DB.dd = DB.dd.filter(d => d.hopId !== hopId);
-  save(); veDiemDanh(); render();
+ btnClear.onclick = async () => {
+  btnAll.disabled = true;
+  btnClear.disabled = true;
+  btnClear.textContent = 'Đang xoá...';
+  try {
+   await dataApi.luuDiemDanhHangLoat(hopId, 'clear');
+   veDiemDanh();
+   render();
+  } catch (err) {
+   alert('Xoá điểm danh hàng loạt thất bại: ' + (err.message || err));
+  } finally {
+   btnAll.disabled = false;
+   btnClear.disabled = false;
+   btnClear.textContent = 'Xoá hết đánh dấu';
+  }
  };
 
  dlgBody.querySelector('#dong_dd').onclick = () => {
@@ -223,42 +249,61 @@ function formDiemDanh(hopId) {
   render();
  };
 
- dlgBody.querySelector('#dd_than').addEventListener('click', e => {
+ dlgBody.querySelector('#dd_than').addEventListener('click', async e => {
   const btn = e.target.closest('[data-act-dd]');
   if (!btn) return;
   const v = btn.dataset.actDd;
   const nsId = Number(btn.dataset.nsId);
-  datDiemDanh(hopId, nsId, v);
-  save();
-  veDiemDanh();
-  render();
+  try {
+   await datDiemDanh(hopId, nsId, v);
+   veDiemDanh();
+   render();
+  } catch (err) {
+   veDiemDanh();
+  }
  });
 }
 
-/* ----- tệp đính kèm của một buổi sinh hoạt ----- */
+/* ----- tệp đính kèm dùng chung qua Supabase Storage ----- */
 async function moTep(id) {
- const b = await layTep(id).catch(() => null);
  const meta = DB.hop.flatMap(h => h.tep || []).find(t => t.id === id);
- if (!b) { bao('Không tìm thấy nội dung tệp', 'Tệp chỉ nằm trên trình duyệt đã tải nó lên, không đồng bộ sang máy khác.'); return; }
- const url = URL.createObjectURL(b);
- if (meta && /^image\//.test(meta.kieu || '')) {
-  dlgBody.innerHTML = `<h2>${esc(meta.ten)}</h2><p class="sub">${coTep(meta.co)} · tải ${dmy(meta.taiLuc)}</p>
-  <img src="${url}" alt="${esc(meta.ten)}" style="width:100%;border-radius:10px;border:1px solid var(--line)">
-  <div class="row" style="margin-top:12px"><button type="button" class="b-p end" id="dong_anh">Đóng</button></div>`;
-  dlg.showModal();
-  const d = dlgBody.querySelector('#dong_anh');
-  if (d) d.onclick = () => dlg.close();
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+ if (!meta) {
+  bao('Không tìm thấy thông tin tệp', 'Tệp không tồn tại trong dữ liệu hiện tại.');
   return;
  }
- if (!taiDuoc()) {
-  URL.revokeObjectURL(url);
-  bao('Bản xem nhanh không tải được tệp', 'Trình xem này chặn việc tải tệp về máy. Mở trang trực tiếp để tải ' + (meta ? meta.ten : 'tệp') + ' — ảnh thì vẫn xem trực tiếp được ở đây.');
+ if (!meta.storagePath) {
+  bao('Tệp chưa đồng bộ lên Storage dùng chung',
+   'Tệp này được tải lên bộ nhớ trình duyệt cũ (IndexedDB) trên máy gốc. Để xem từ máy/trình duyệt khác, vui lòng mở đúng trình duyệt đã tải lên và chạy "Quản lý dữ liệu → Chuyển tệp cũ lên Supabase Storage".');
   return;
  }
- const a = document.createElement('a'); a.href = url; a.download = meta ? meta.ten : 'bien-ban';
- document.body.appendChild(a); a.click(); a.remove();
- setTimeout(() => URL.revokeObjectURL(url), 20000);
+
+ try {
+  const signedUrl = await storageApi.getSignedUrl(meta.storagePath, STORAGE_SIGNED_TTL);
+  const isImage = /^image\//.test(meta.loai || meta.kieu || '') || /\.(jpe?g|png|webp|gif)$/i.test(meta.ten || '');
+  if (isImage) {
+   dlgBody.innerHTML = `<h2>${esc(meta.ten)}</h2><p class="sub">${coTep(meta.co)} · tải ${dmy(meta.taiLuc)} · link tạm hiệu lực ${Math.round(STORAGE_SIGNED_TTL / 60)} phút</p>
+   <img src="${esc(signedUrl)}" alt="${esc(meta.ten)}" style="width:100%;border-radius:10px;border:1px solid var(--line)">
+   <div class="row" style="margin-top:12px">
+    <a href="${esc(signedUrl)}" target="_blank" rel="noopener noreferrer" class="b-s" style="text-decoration:none;display:inline-flex;align-items:center">Mở tab mới / Tải về</a>
+    <button type="button" class="b-p end" id="dong_anh">Đóng</button>
+   </div>`;
+   dlg.showModal();
+   const d = dlgBody.querySelector('#dong_anh');
+   if (d) d.onclick = () => dlg.close();
+   return;
+  }
+  const blob = await storageApi.downloadBlob(meta);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = meta.ten || 'bien-ban';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 20000);
+ } catch (err) {
+  bao('Không mở được tệp từ Supabase Storage', err.message || 'Thiếu quyền truy cập hoặc kết nối mạng.');
+ }
 }
 
 const bao = (tieuDe, noiDung) => {
@@ -272,42 +317,42 @@ const bao = (tieuDe, noiDung) => {
 async function formTep(hopId) {
  const coQuyenSua = state.role !== 'cd' && (coQuyen('ql_nhansu') || isAdmin());
  const h = DB.hop.find(x => x.id === hopId);
+ if (!h) return;
  h.tep = h.tep || [];
- let dung = '';
- try { const e = await navigator.storage.estimate(); dung = ' · trình duyệt đã dùng ' + coTep(e.usage || 0); } catch (e) { }
 
  dlgBody.innerHTML = `<h2>Biên bản ${dmy(h.ngay)}</h2>
- <p class="sub">${esc(h.ten)}${dung}</p>
+ <p class="sub">${esc(h.ten)} · Lưu trữ dùng chung qua Supabase Storage (Private)</p>
  <div id="t_ds">${dsTep(h, coQuyenSua)}</div>
- ${coQuyenSua ? `<div class="f"><label for="t_file">Tải tệp lên (biên bản, ảnh chụp, danh sách ký tên)</label>
-  <input id="t_file" type="file" multiple></div>` : ''}
- <div class="note">Tệp nằm trong bộ nhớ trình duyệt của máy này, không gửi đi đâu và không đồng bộ sang máy khác.
-  Mỗi tệp tối đa ${coTep(TEP_TOI_DA)}. Muốn cả BCH cùng xem thì vẫn nên dán thêm link Drive vào ô Biên bản.</div>
- <div class="row"><button type="button" class="b-p end" id="dong_tep">Xong</button></div>`;
+ ${coQuyenSua ? `<div class="f"><label for="t_file">Tải tệp lên Supabase Storage (biên bản, ảnh chụp, danh sách ký tên)</label>
+  <input id="t_file" type="file" multiple accept="${TEP_ALLOWED_EXTS.map(x => '.' + x).join(',')}"></div>` : ''}
+ <div id="t_err"></div>
+ <div class="note">Tệp lưu trong bucket riêng tư <code>lcdkhud-files</code>, tối đa ${coTep(TEP_TOI_DA)}/tệp, chỉ định dạng cho phép (${TEP_ALLOWED_EXTS.join(', ')}). Đường dẫn lưu theo mã UUID an toàn.</div>
+ <div class="row"><button type="button" class="b-s" id="btn_mig_from_tep">Chuyển tệp cũ từ IndexedDB...</button><button type="button" class="b-p end" id="dong_tep">Xong</button></div>`;
  dlg.showModal();
 
  const dongTep = dlgBody.querySelector('#dong_tep');
  if (dongTep) dongTep.onclick = () => dlg.close();
+ const btnMig = dlgBody.querySelector('#btn_mig_from_tep');
+ if (btnMig) btnMig.onclick = () => moCongCuChuyenTepCu();
 
  if (coQuyenSua) {
   dlgBody.querySelector('#t_file').addEventListener('change', async e => {
    const ds = dlgBody.querySelector('#t_ds');
-   for (const f of [...e.target.files]) {
-    if (f.size > TEP_TOI_DA) {
-     ds.insertAdjacentHTML('afterbegin', `<div class="note" style="border-left-color:var(--crit)">${esc(f.name)} nặng ${coTep(f.size)}, vượt mức cho phép.</div>`);
-     continue;
-    }
-    const id = idTep();
+   const errBox = dlgBody.querySelector('#t_err');
+   if (errBox) errBox.innerHTML = '';
+   const fileInp = e.target;
+   fileInp.disabled = true;
+   for (const f of [...fileInp.files]) {
     try {
-     await luuTep(id, f);
+     await storageApi.uploadHopFile(hopId, f);
     } catch (err) {
-     ds.insertAdjacentHTML('afterbegin', '<div class="note" style="border-left-color:var(--crit)">Trình duyệt không cho lưu tệp (có thể đang ở chế độ ẩn danh).</div>');
-     continue;
+     if (errBox) {
+      errBox.insertAdjacentHTML('beforeend', `<div class="note" style="border-left-color:var(--crit);margin-bottom:8px">${esc(f.name)}: ${esc(err.message || err)}</div>`);
+     }
     }
-    h.tep.push({ id, ten: f.name, co: f.size, kieu: f.type, taiLuc: TODAY });
    }
-   save();
-   e.target.value = '';
+   fileInp.disabled = false;
+   fileInp.value = '';
    ds.innerHTML = dsTep(h, coQuyenSua);
    render();
   });
@@ -315,22 +360,26 @@ async function formTep(hopId) {
 }
 
 const dsTep = (h, coQuyenSua) => (h.tep || []).length ? `<div class="scroll" style="margin-bottom:12px"><table><tbody>
- ${h.tep.map(t => `<tr><td><b>${esc(t.ten)}</b><div class="t2">${coTep(t.co)} · tải ${dmy(t.taiLuc)}</div></td>
+ ${(h.tep || []).map(t => `<tr><td><b>${esc(t.ten)}</b><div class="t2">${coTep(t.co)} · tải ${dmy(t.taiLuc)} ${t.storagePath ? pill('Storage', 'p-good') : pill('Cục bộ cũ', 'p-warn')}</div></td>
  <td class="n"><button class="b-s" onclick="moTep('${escJs(t.id)}')">Mở</button>
   ${coQuyenSua ? `<button class="b-s b-no" onclick="xoaTep(${h.id},'${escJs(t.id)}')">Xoá</button>` : ''}</td></tr>`).join('')}
  </tbody></table></div>` : '<p class="t2" style="margin:0 0 12px">Chưa có tệp nào cho buổi này.</p>';
 
-function xoaTep(hopId, id) {
+async function xoaTep(hopId, id) {
  if (state.role === 'cd' || (!coQuyen('ql_nhansu') && !isAdmin())) {
   alert('Bạn không có quyền xoá tệp sinh hoạt.');
   return;
  }
- const h = DB.hop.find(x => x.id === hopId);
- h.tep = h.tep.filter(t => t.id !== id);
- save();
- xoaTepKho(id).catch(() => { });
- dlgBody.querySelector('#t_ds').innerHTML = dsTep(h, true);
- render();
+ try {
+  const res = await storageApi.deleteHopFile(hopId, id);
+  if (res && res.warning) alert(res.warning);
+  const h = DB.hop.find(x => x.id === hopId);
+  const dsEl = dlgBody.querySelector('#t_ds');
+  if (h && dsEl) dsEl.innerHTML = dsTep(h, true);
+  render();
+ } catch (err) {
+  alert('Xoá tệp thất bại: ' + (err.message || err));
+ }
 }
 
 function formHop(id) {
@@ -386,31 +435,20 @@ function formHop(id) {
   luu.disabled = true;
   luu.textContent = 'Đang lưu...';
 
-  let hopRec;
-  if (id) {
-   hopRec = DB.hop.find(x => x.id === id);
-   Object.assign(hopRec, o);
-  } else {
-   const nid = nextId(DB.hop);
-   hopRec = { id: nid, tep: [], ...o };
-   DB.hop.push(hopRec);
-  }
-
-  if (typeof dataApi !== 'undefined' && dataApi.luuHop) {
-   try {
-    await dataApi.luuHop(hopRec);
-   } catch (e) {
-    console.error('Lỗi khi lưu buổi họp:', e);
-    alert('Lưu lên máy chủ gặp lỗi: ' + (e.message || e));
+  try {
+   const hopRec = id ? { ...DB.hop.find(x => x.id === id), ...o, id } : o;
+   const saved = await dataApi.luuHop(hopRec, { isNew: !id });
+   dlg.close();
+   if (!id && saved && saved.data) {
+    formDiemDanh(saved.data.id);
+   } else {
+    render();
    }
-  }
-
-  save();
-  dlg.close();
-  if (!id) {
-   formDiemDanh(hopRec.id);
-  } else {
-   render();
+  } catch (e) {
+   console.error('Lỗi khi lưu buổi họp:', e);
+   luu.disabled = false;
+   luu.textContent = 'Lưu';
+   alert('Lưu lên máy chủ thất bại: ' + (e.message || e));
   }
  };
 }
@@ -421,21 +459,13 @@ function xoaHop(id) {
   return;
  }
  dlg.close();
- xacNhan('Xoá buổi sinh hoạt?', 'Dữ liệu điểm danh của buổi này cũng bị xoá.', async () => {
-  const h = DB.hop.find(x => x.id === id);
-  if (h) {
-   (h.tep || []).forEach(t => xoaTepKho(t.id).catch(() => { }));
+ xacNhan('Xoá buổi sinh hoạt?', 'Dữ liệu điểm danh và tệp đính kèm của buổi này cũng bị xoá.', async () => {
+  try {
+   await dataApi.xoaHop(id);
+   render();
+  } catch (e) {
+   console.error('Lỗi khi xoá buổi họp trên máy chủ:', e);
+   alert('Xoá buổi họp trên máy chủ thất bại: ' + (e.message || e));
   }
-  if (typeof dataApi !== 'undefined' && dataApi.xoaHop) {
-   try {
-    await dataApi.xoaHop(id);
-   } catch (e) {
-    console.error('Lỗi khi xoá buổi họp trên máy chủ:', e);
-   }
-  }
-  DB.hop = DB.hop.filter(x => x.id !== id);
-  DB.dd = DB.dd.filter(d => d.hopId !== id);
-  save();
-  render();
  });
 }

@@ -225,17 +225,25 @@ function moSuaLink({tieuDe='Cập nhật link', url='', onSave}){
   const full = chuanHoaLink(v);
   window.open(full, '_blank', 'noopener');
  };
- dlgBody.querySelector('#luu').onclick = () => {
+ const btnSave = dlgBody.querySelector('#luu');
+ btnSave.onclick = async () => {
   const v = dlgBody.querySelector('#m_link_input').value.trim();
-  onSave(v);
-  save();
-  dlg.close();
-  render();
+  btnSave.disabled = true;
+  btnSave.textContent = 'Đang lưu...';
+  try {
+   await onSave(v);
+   dlg.close();
+   render();
+  } catch (err) {
+   btnSave.disabled = false;
+   btnSave.textContent = 'Lưu link';
+   alert('Lưu link lên máy chủ thất bại: ' + (err.message || err));
+  }
  };
 }
 
 /** Đổi trạng thái báo cáo chi đoàn (ok / wait / no) */
-function doiTrangThaiBC(id, newSt){
+async function doiTrangThaiBC(id, newSt){
  if(typeof auth !== 'undefined'){
   if(!auth.currentUser || auth.currentUser.role === 'cd' || !auth.coQuyen('duyet_bc')){
    alert('Bạn không có quyền duyệt báo cáo.');
@@ -245,24 +253,32 @@ function doiTrangThaiBC(id, newSt){
  }
  const b = DB.bc.find(x => x.id === id);
  if(!b) return;
+ const prevSt = b.status;
+ const prevNx = b.nx;
+ let nextNx = b.nx;
  if(newSt === 'no'){
   const lyDo = prompt('Nhập nhận xét / lý do trả lại để chi đoàn sửa bổ sung:', b.nx || 'Minh chứng chưa đủ, đề nghị bổ sung ảnh hoạt động và danh sách ký tên.');
   if(lyDo === null) { render(); return; }
-  b.nx = lyDo.trim() || 'Minh chứng chưa đạt yêu cầu, đề nghị bổ sung nộp lại.';
+  nextNx = lyDo.trim() || 'Minh chứng chưa đạt yêu cầu, đề nghị bổ sung nộp lại.';
  } else if(newSt === 'ok') {
-  b.nx = '';
+  nextNx = '';
  }
  b.status = newSt;
- if(typeof dataApi !== 'undefined' && dataApi.luuBC){
-  dataApi.luuBC(b).catch(err => {
-   alert('Lỗi cập nhật máy chủ: ' + err.message);
-  });
- }
+ b.nx = nextNx;
  render();
+ try {
+  await dataApi.luuBC(b, { isUpdate: true });
+  render();
+ } catch (err) {
+  b.status = prevSt;
+  b.nx = prevNx;
+  alert('Lỗi cập nhật máy chủ (đã hoàn tác): ' + (err.message || err));
+  render();
+ }
 }
 
 /** Đổi trạng thái hoạt động tự tổ chức (ok / wait / no) */
-function doiTrangThaiHD(id, newSt){
+async function doiTrangThaiHD(id, newSt){
  if(typeof auth !== 'undefined'){
   if(!auth.currentUser || auth.currentUser.role === 'cd' || !auth.coQuyen('duyet_bc')){
    alert('Bạn không có quyền duyệt hoạt động.');
@@ -272,17 +288,21 @@ function doiTrangThaiHD(id, newSt){
  }
  const h = DB.hd.find(x => x.id === id);
  if(!h) return;
+ const prevSt = h.status;
  h.status = newSt;
- if(typeof dataApi !== 'undefined' && dataApi.luuHD){
-  dataApi.luuHD(h).catch(err => {
-   alert('Lỗi cập nhật máy chủ: ' + err.message);
-  });
- }
  render();
+ try {
+  await dataApi.luuHD(h, { isUpdate: true });
+  render();
+ } catch (err) {
+  h.status = prevSt;
+  alert('Lỗi cập nhật máy chủ (đã hoàn tác): ' + (err.message || err));
+  render();
+ }
 }
 
 /** Đổi tiến độ đầu việc timeline (chua / dang / xong) */
-function doiTienDoKH(id, newTd){
+async function doiTienDoKH(id, newTd){
  if(typeof auth !== 'undefined'){
   if(!auth.currentUser || auth.currentUser.role === 'cd' || !auth.coQuyen('ql_kh')){
    alert('Bạn không có quyền cập nhật tiến độ công tác LCĐ.');
@@ -292,71 +312,63 @@ function doiTienDoKH(id, newTd){
  }
  const k = KH(id);
  if(!k) return;
+ const prevTd = k.tienDo;
  k.tienDo = newTd;
- if(typeof dataApi !== 'undefined' && dataApi.luuKH){
-  dataApi.luuKH(k).catch(err => {
-   alert('Lỗi cập nhật máy chủ: ' + err.message);
-  });
- }
  render();
+ try {
+  await dataApi.luuKH(k, { isUpdate: true });
+  render();
+ } catch (err) {
+  k.tienDo = prevTd;
+  alert('Lỗi cập nhật máy chủ (đã hoàn tác): ' + (err.message || err));
+  render();
+ }
 }
 
-/** Modal Quản lý và nạp dữ liệu thật */
+/** Modal Quản lý dữ liệu thật, xuất/nhập người dùng & chuyển tệp IndexedDB cũ */
 function formQuanLyDuLieu(){
  dlg.classList.add('dlg-wide');
- dlgBody.innerHTML = `<h2>⚙️ Quản lý & Nạp dữ liệu thật</h2>
- <p class="sub">Chuyển đổi từ dữ liệu demo sang dữ liệu thật của nhiệm kỳ 2025–2027, sao lưu và phục hồi an toàn.</p>
+ dlgBody.innerHTML = `<h2>⚙️ Quản lý dữ liệu & Đồng bộ máy chủ</h2>
+ <p class="sub">Toàn bộ dữ liệu nghiệp vụ được lưu tập trung trên PostgreSQL &amp; Storage dùng chung có kiểm soát quyền RLS.</p>
 
  <div class="mgmt-grid">
   <div class="mgmt-card is-recommended">
    <div class="mgmt-card-info">
-    <h4>🚀 1. Khởi tạo nạp dữ liệu thật (Khuyên dùng)</h4>
-    <p>Giữ lại danh sách Chi đoàn & cơ cấu nhân sự Liên chi đoàn; <b>xóa sạch</b> các báo cáo, hoạt động, lịch họp, điểm danh và đoàn viên mẫu để bắt đầu ghi nhận dữ liệu thực tế.</p>
+    <h4>📁 1. Nhập dữ liệu từ Excel / Template chuẩn</h4>
+    <p>Tải mẫu chuẩn trong thư mục <code>templates/</code>, kiểm tra trước (Dry-run) dữ liệu hợp lệ/trùng/lỗi và đối soát theo lô khi nhập.</p>
    </div>
-   <button type="button" class="b-p" id="btnInitReal" style="white-space:nowrap">Bắt đầu nạp data thật</button>
+   <button type="button" class="b-p" onclick="dlg.close();dlg.classList.remove('dlg-wide');go('excel')" style="white-space:nowrap">Mở trang Nhập Excel →</button>
   </div>
 
   <div class="mgmt-card">
    <div class="mgmt-card-info">
-    <h4>📁 2. Nhập dữ liệu từ Excel / File mẫu</h4>
-    <p>Nhập danh sách đoàn viên từ file của lớp, cập nhật tiến độ công tác theo timeline hoặc nạp danh sách nhân sự từ file checklist của LCĐ.</p>
+    <h4>💾 2. Xuất dữ liệu người dùng (.json)</h4>
+    <p>Xuất bản dữ liệu nghiệp vụ thuộc phạm vi tài khoản ra file JSON (không kèm mật khẩu/secrets). <b>Lưu ý:</b> đây không phải bản backup vận hành toàn hệ thống.</p>
    </div>
-   <button type="button" class="b-s" onclick="dlg.close();go('excel')" style="white-space:nowrap">Mở trang Nhập Excel →</button>
+   <button type="button" class="b-s" onclick="xuatBackupJSON()" style="white-space:nowrap">Xuất file JSON</button>
   </div>
 
   <div class="mgmt-card">
    <div class="mgmt-card-info">
-    <h4>💾 3. Sao lưu dữ liệu ra file (.json)</h4>
-    <p>Tải toàn bộ cơ sở dữ liệu hiện tại về máy tính để lưu trữ an toàn, tránh mất mát khi xóa bộ nhớ trình duyệt hoặc gửi sang máy tính khác.</p>
+    <h4>📥 3. Phục hồi dữ liệu từ file JSON lên máy chủ</h4>
+    <p>Đọc file <code>.json</code> đã xuất, tự động lập bảng ánh xạ ID cũ→mới và ghi trực tiếp vào cơ sở dữ liệu Supabase (kiểm tra quyền theo vai trò).</p>
    </div>
-   <button type="button" class="b-s" onclick="xuatBackupJSON()" style="white-space:nowrap">Tải file Backup (.json)</button>
-  </div>
-
-  <div class="mgmt-card">
-   <div class="mgmt-card-info">
-    <h4>📥 4. Phục hồi dữ liệu từ file sao lưu</h4>
-    <p>Chọn file <code>.json</code> đã sao lưu trước đó để nạp lại đầy đủ 100% dữ liệu vào hệ thống.</p>
-   </div>
-   <label class="b-s" style="white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center">
-    Nạp file Backup <input type="file" id="restoreFile" accept=".json" style="display:none">
+   <label class="b-s" id="lblRestoreJson" style="white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center">
+    <span id="txtRestoreJson">Nạp file JSON</span> <input type="file" id="restoreFile" accept=".json" style="display:none">
    </label>
   </div>
 
   <div class="mgmt-card">
    <div class="mgmt-card-info">
-    <h4>⚪ 5. Xóa trắng toàn bộ dữ liệu</h4>
-    <p>Xóa sạch mọi bảng biểu (kể cả chi đoàn) để bắt đầu hệ thống từ con số 0 hoàn toàn tinh sạch.</p>
+    <h4>☁️ 4. Chuyển tệp cũ từ IndexedDB lên Supabase Storage</h4>
+    <p>Quét tệp đính kèm còn nằm trong bộ nhớ trình duyệt trên máy này, tải lên bucket dùng chung và đối soát dung lượng + SHA-256 (không tự xoá bản cũ).</p>
    </div>
-   <button type="button" class="b-s b-no" id="btnWipeAll" style="white-space:nowrap">Xóa trắng tất cả</button>
+   <button type="button" class="b-s" id="btnMigrateIdb" style="white-space:nowrap">Quét &amp; chuyển tệp</button>
   </div>
+ </div>
 
-  <div class="mgmt-card">
-   <div class="mgmt-card-info">
-    <h4>🔄 6. Khôi phục dữ liệu mẫu Demo</h4>
-    <p>Nạp lại toàn bộ dữ liệu mẫu ban đầu để tham khảo kịch bản đánh giá, KPI và quy trình làm việc mẫu.</p>
-   </div>
-   <button type="button" class="b-s" id="btnRestoreDemo" style="white-space:nowrap">Nạp lại Demo</button>
-  </div>
+ <div class="note" style="margin-top:12px">
+  <b>Lưu ý vận hành:</b> Để làm sạch dữ liệu mẫu hoặc khôi phục snapshot PostgreSQL/Storage ở mức hệ thống, vui lòng thao tác qua SQL migration hoặc bộ công cụ <code>scripts/backup/</code> theo hướng dẫn trong <code>docs/BACKUP_AND_RESTORE_RUNBOOK.md</code>.
  </div>
 
  <div class="row" style="margin-top:14px">
@@ -365,48 +377,98 @@ function formQuanLyDuLieu(){
 
  dlg.showModal();
 
- dlgBody.querySelector('#btnInitReal').onclick = () => {
-  xacNhan('Bắt đầu nạp data thật?', 'Hệ thống sẽ giữ khung Chi đoàn và Nhân sự, xóa sạch mọi hoạt động, báo cáo và điểm danh mẫu để bạn nạp data thực tế.', () => {
-   khoiTaoDataThat('giu-khung');
-   dlg.close();
-   dlg.classList.remove('dlg-wide');
-   render();
-  });
- };
-
- dlgBody.querySelector('#btnWipeAll').onclick = () => {
-  xacNhan('Xóa trắng toàn bộ dữ liệu?', 'Mọi chi đoàn, nhân sự, đầu việc và báo cáo sẽ bị xóa rỗng hoàn toàn để nhập mới từ đầu.', () => {
-   khoiTaoDataThat('trang-tinh');
-   dlg.close();
-   dlg.classList.remove('dlg-wide');
-   render();
-  });
- };
-
- dlgBody.querySelector('#btnRestoreDemo').onclick = () => {
-  xacNhan('Khôi phục dữ liệu mẫu Demo?', 'Dữ liệu hiện tại sẽ được thay bằng dữ liệu mẫu.', () => {
-   khoiTaoDataThat('demo');
-   dlg.close();
-   dlg.classList.remove('dlg-wide');
-   render();
-  });
- };
+ const btnMigrate = dlgBody.querySelector('#btnMigrateIdb');
+ if (btnMigrate) {
+  btnMigrate.onclick = () => moCongCuChuyenTepCu();
+ }
 
  const rFile = dlgBody.querySelector('#restoreFile');
+ const txtRestore = dlgBody.querySelector('#txtRestoreJson');
  if(rFile){
   rFile.addEventListener('change', async e => {
    const file = e.target.files[0];
    if(!file) return;
+   if (txtRestore) txtRestore.textContent = 'Đang ghi máy chủ...';
+   rFile.disabled = true;
    try {
-    await nhapBackupJSON(file);
-    alert('Đã phục hồi dữ liệu thành công từ file backup!');
+    const res = await nhapBackupJSON(file);
+    const s = res && res.summary ? res.summary : {};
+    alert(`Đã phục hồi lên máy chủ thành công (CĐ: ${s.cd||0}, NS: ${s.ns||0}, KH: ${s.kh||0}, BC: ${s.bc||0}, HĐ: ${s.hd||0}, ĐV: ${s.dv||0}).`);
     dlg.close();
     dlg.classList.remove('dlg-wide');
     render();
    } catch(err) {
-    alert('Lỗi phục hồi: ' + err.message);
+    alert('Lỗi phục hồi lên máy chủ: ' + (err.message || err));
+   } finally {
+    rFile.disabled = false;
+    rFile.value = '';
+    if (txtRestore) txtRestore.textContent = 'Nạp file JSON';
    }
   });
+ }
+}
+
+/** Trình hướng dẫn chuyển tệp đính kèm cũ từ IndexedDB trên trình duyệt hiện tại lên Supabase Storage */
+async function moCongCuChuyenTepCu() {
+ if (typeof storageApi === 'undefined') {
+  alert('Chưa tải module Supabase Storage.');
+  return;
+ }
+ dlg.classList.add('dlg-wide');
+ dlgBody.innerHTML = `<h2>☁️ Chuyển tệp cũ từ IndexedDB lên Supabase Storage</h2>
+ <p class="sub">Đang quét bộ nhớ IndexedDB (<code>lcdkhud-tep</code>) trên trình duyệt này...</p>`;
+ if (!dlg.open) dlg.showModal();
+
+ try {
+  const pv = await storageApi.previewLegacyIndexedDB();
+  const rowsHtml = pv.items.length
+   ? `<div class="scroll" style="max-height:240px;margin:10px 0"><table>
+      <thead><tr><th>Tệp</th><th>Buổi sinh hoạt</th><th class="n">Dung lượng</th><th>SHA-256 (rút gọn)</th><th>Trạng thái</th></tr></thead>
+      <tbody>${pv.items.map(it => `<tr>
+       <td><b>${esc(it.ten)}</b></td>
+       <td class="t2">${esc(it.hopTen)}</td>
+       <td class="n t2">${coTep(it.co)}</td>
+       <td class="t2" style="font-family:monospace;font-size:11px">${it.checksum ? esc(it.checksum.slice(0, 12)) + '…' : '–'}</td>
+       <td>${it.status === 'migrated' ? pill('Đã trên Storage', 'p-good') : it.status === 'pending' ? pill('Chờ chuyển', 'p-warn') : pill('Chưa khớp DB', 'p-mute')}</td>
+      </tr>`).join('')}</tbody></table></div>`
+   : '<div class="empty" style="padding:18px">Không tìm thấy tệp nào còn lưu trong IndexedDB trên trình duyệt này.</div>';
+
+  dlgBody.innerHTML = `<h2>☁️ Chuyển tệp cũ từ IndexedDB lên Supabase Storage</h2>
+  <p class="sub">Tìm thấy <b>${pv.items.length}</b> mục (${coTep(pv.totalSize)}) · Cần chuyển: <b>${pv.pendingCount}</b> tệp.</p>
+  <div class="note">
+   Quá trình sẽ tải lên bucket private <code>lcdkhud-files</code>, cập nhật metadata <code>storage_path</code> và đối soát dung lượng + mã băm SHA-256.
+   Bản cũ trong IndexedDB được giữ nguyên để đối chiếu an toàn. <b>Lưu ý:</b> Tệp lưu trên máy/trình duyệt khác không thể lấy tự động từ đây — cần thao tác trên đúng máy đã tải tệp lên trước đó.
+  </div>
+  ${rowsHtml}
+  <div id="mig_log"></div>
+  <div class="row" style="margin-top:12px">
+   <button type="button" id="huy_mig">Đóng</button>
+   ${pv.pendingCount > 0 ? '<button type="button" class="b-p end" id="btn_run_mig">Tải lên &amp; Đối soát ngay</button>' : ''}
+  </div>`;
+
+  dlgBody.querySelector('#huy_mig').onclick = () => { dlg.close(); dlg.classList.remove('dlg-wide'); render(); };
+  const btnRun = dlgBody.querySelector('#btn_run_mig');
+  if (btnRun) {
+   btnRun.onclick = async () => {
+    btnRun.disabled = true;
+    btnRun.textContent = 'Đang chuyển & đối soát...';
+    const rep = await storageApi.migrateLegacyIndexedDB();
+    const logEl = dlgBody.querySelector('#mig_log');
+    if (logEl) {
+     logEl.innerHTML = `<div class="note" style="border-left-color:${rep.failed ? 'var(--crit)' : 'var(--good)'}">
+      <b>Kết quả đối soát chuyển tệp:</b> Tổng cần chuyển ${rep.total} · Đã tải lên ${rep.uploaded} · Xác minh SHA-256/dung lượng thành công <b>${rep.verified}</b> (${coTep(rep.totalBytes)}) · Bỏ qua ${rep.skipped} · Lỗi ${rep.failed}.
+      ${rep.errors.length ? '<br><span style="color:var(--crit)">' + rep.errors.map(esc).join('<br>') + '</span>' : ''}
+     </div>`;
+    }
+    btnRun.textContent = 'Hoàn tất đối soát';
+    render();
+   };
+  }
+ } catch (err) {
+  dlgBody.innerHTML = `<h2>☁️ Lỗi quét tệp IndexedDB</h2>
+  <p class="sub">${esc(err.message || err)}</p>
+  <div class="row"><button type="button" class="b-p end" id="dong_mig_err">Đóng</button></div>`;
+  dlgBody.querySelector('#dong_mig_err').onclick = () => { dlg.close(); dlg.classList.remove('dlg-wide'); };
  }
 }
 

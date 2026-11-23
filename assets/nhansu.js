@@ -33,11 +33,7 @@ PAGES.bch = function () {
      tieuDe: 'Link FB: ' + u.ten,
      url: u.fb,
      onSave: async v => {
-      u.fb = v;
-      if (typeof dataApi !== 'undefined' && dataApi.luuNS) {
-       try { await dataApi.luuNS(u); } catch (e) { console.error(e); }
-      }
-      save();
+      await dataApi.luuNS({ ...u, fb: v }, { isUpdate: true });
       render();
      }
     } : null) : '';
@@ -164,27 +160,21 @@ function formUV(id) {
   luu.disabled = true;
   luu.textContent = 'Đang lưu...';
 
-  let uRec;
-  if (id) {
-   uRec = UV(id);
-   Object.assign(uRec, o);
-  } else {
-   uRec = { id: nextId(DB.ns), ...o };
-   DB.ns.push(uRec);
-  }
-
-  if (typeof dataApi !== 'undefined' && dataApi.luuNS) {
-   try {
-    await dataApi.luuNS(uRec);
-   } catch (e) {
-    console.error('Lỗi khi lưu nhân sự:', e);
-    alert('Lưu lên máy chủ gặp lỗi: ' + (e.message || e));
+  try {
+   if (id) {
+    const cu = UV(id);
+    await dataApi.luuNS({ ...cu, ...o, id }, { isUpdate: true });
+   } else {
+    await dataApi.luuNS(o, { isNew: true });
    }
+   dlg.close();
+   render();
+  } catch (e) {
+   console.error('Lỗi khi lưu nhân sự:', e);
+   luu.disabled = false;
+   luu.textContent = 'Lưu';
+   alert('Lưu lên máy chủ thất bại: ' + (e.message || e));
   }
-
-  save();
-  dlg.close();
-  render();
  };
 }
 
@@ -196,20 +186,12 @@ function xoaUV(id) {
  const u = UV(id);
  dlg.close();
  xacNhan('Xoá nhân sự?', u.ten + ' sẽ bị xoá khỏi danh sách và khỏi các bảng điểm danh.', async () => {
-  if (typeof dataApi !== 'undefined' && dataApi.xoaNS) {
-   try {
-    await dataApi.xoaNS(id);
-   } catch (e) {
-    console.error('Lỗi khi xoá nhân sự trên máy chủ:', e);
-   }
+  try {
+   await dataApi.xoaNS(id);
+   render();
+  } catch (e) {
+   console.error('Lỗi khi xoá nhân sự trên máy chủ:', e);
+   alert('Xoá nhân sự trên máy chủ thất bại: ' + (e.message || e));
   }
-  DB.ns = DB.ns.filter(x => x.id !== id);
-  DB.dd = DB.dd.filter(d => d.nsId !== id);
-  DB.kh.forEach(k => {
-   k.ptIds = k.ptIds.filter(i => i !== id);
-   k.ptId = k.ptIds[0] || null;
-  });
-  save();
-  render();
  });
 }

@@ -51,7 +51,14 @@ const auth = {
     if (ok) {
      this.status = 'authenticated';
      this.dongBoQuyenState();
-     await dataApi.loadAll();
+     dataApi.bumpSessionEpoch();
+     try {
+      await dataApi.loadAll();
+      dataApi.startRealtime();
+     } catch (loadErr) {
+      console.error('Lỗi tải dữ liệu khởi tạo:', loadErr);
+      alert('Không thể nạp dữ liệu từ máy chủ: ' + (loadErr.message || loadErr));
+     }
      render();
      this._setupAuthListener(client);
      return;
@@ -73,6 +80,10 @@ const auth = {
 
   client.auth.onAuthStateChange(async (event, session) => {
    if (event === 'SIGNED_OUT' || !session) {
+    if (typeof dataApi !== 'undefined') {
+     dataApi.stopRealtime();
+     dataApi.bumpSessionEpoch();
+    }
     this.currentUser = null;
     this.status = 'unauthenticated';
     DB = { cd: [], ns: [], kh: [], hop: [], dd: [], bc: [], hd: [], dv: [] };
@@ -84,7 +95,14 @@ const auth = {
      if (ok) {
       this.status = 'authenticated';
       this.dongBoQuyenState();
-      await dataApi.loadAll();
+      dataApi.bumpSessionEpoch();
+      try {
+       await dataApi.loadAll();
+       dataApi.startRealtime();
+      } catch (loadErr) {
+       console.error('Lỗi nạp dữ liệu phiên mới:', loadErr);
+       alert('Không thể nạp dữ liệu từ máy chủ: ' + (loadErr.message || loadErr));
+      }
       render();
      }
     }
@@ -209,7 +227,14 @@ const auth = {
 
    this.status = 'authenticated';
    this.dongBoQuyenState();
-   await dataApi.loadAll();
+   dataApi.bumpSessionEpoch();
+   try {
+    await dataApi.loadAll();
+    dataApi.startRealtime();
+   } catch (loadErr) {
+    console.error('Lỗi tải dữ liệu sau đăng nhập:', loadErr);
+    alert('Đăng nhập thành công nhưng tải dữ liệu thất bại: ' + (loadErr.message || loadErr));
+   }
    render();
    return { ok: true, user: this.currentUser };
   } catch (err) {
@@ -218,6 +243,10 @@ const auth = {
  },
 
  async logout() {
+  if (typeof dataApi !== 'undefined') {
+   dataApi.stopRealtime();
+   dataApi.bumpSessionEpoch();
+  }
   const client = getSupabaseClient();
   if (client) {
    try {

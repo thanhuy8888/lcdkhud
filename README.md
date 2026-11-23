@@ -123,3 +123,15 @@ Bộ kiểm tra xác minh 7 nhóm tiêu chuẩn:
 5. Kiểm định bản sao lưu JSON: không rò rỉ mật khẩu, thông tin tài khoản hoặc secrets.
 6. Hồi quy công thức tính KPI chi đoàn và chấm điểm uỷ viên BCH theo đúng quy định.
 7. Cơ chế Fail-Closed: Khóa toàn bộ quyền truy cập và dữ liệu khi thiếu module xác thực hoặc phiên đăng nhập không hợp lệ.
+
+## 7. Ghi chú
+
+### Quyết định kiến trúc Backend
+- **Lựa chọn**: **Supabase** (Supabase Auth + PostgreSQL với Row Level Security + private Storage + Realtime).
+- **Lý do**:
+  - Tương thích trực tiếp với ứng dụng HTML/CSS/JavaScript thuần qua SDK `@supabase/supabase-js` v2.49.1 lưu cục bộ tại `assets/vendor/supabase.js`, không cần chuyển framework hay dựng thêm máy chủ API trung gian.
+  - PostgreSQL + RLS bảo vệ dữ liệu đa người dùng theo vai trò (`admin`, `lcd`, `cd`, `bbt`), ép toàn vẹn khóa ngoại, duy nhất MSSV và chặn tự duyệt báo cáo/điểm bằng trigger phía máy chủ.
+  - Bucket Storage riêng tư (`lcdkhud-files`) dùng chung cho mọi trình duyệt/thiết bị thay cho IndexedDB cục bộ, truy cập bằng phiên xác thực hoặc signed URL ngắn hạn.
+  - Supabase Realtime đồng bộ thay đổi giữa các phiên (chi đoàn / LCĐ) mà không cần tải lại toàn bộ trang hay toàn bộ DB.
+  - Hỗ trợ sao lưu chuẩn PostgreSQL (`pg_dump`/`pg_restore`) cùng API Storage để vận hành độc lập.
+- **Giới hạn gói Supabase Free & Sao lưu**: Gói Supabase Free **không có sẵn** daily backup tự động hoặc Point-in-Time Recovery (PITR). Vì vậy dự án tách riêng **Export JSON cho người dùng** khỏi **Backup vận hành mã hóa AES-256-GCM** (xem `scripts/backup/`, `.github/workflows/daily-backup.yml` và [`docs/BACKUP_AND_RESTORE_RUNBOOK.md`](docs/BACKUP_AND_RESTORE_RUNBOOK.md)).

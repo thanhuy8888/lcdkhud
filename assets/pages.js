@@ -297,7 +297,7 @@ PAGES.hoatdong=function(){
   <td class="n">${k.chiTieu?k.chiTieu+(k.donVi==='%'?'% sĩ số':' lượt'):'<span class="t2">nội bộ</span>'}</td>
   <td><span class="track"><i style="width:${Math.min(100,ht)}%;background:${ht>=80?'var(--good)':'var(--seq-4)'}"${tip(k.chiTieu?'Trung bình đạt '+t.tbTy+'% chỉ tiêu · '+t.nop+'/'+DB.cd.length+' chi đoàn nộp':'Theo tiến độ: '+TIENDO[k.tienDo][0])}></i></span>
    <span class="t2">${k.chiTieu?t.dat+'/'+DB.cd.length+' CĐ đạt chỉ tiêu':TIENDO[k.tienDo][0]}${(k.lich||[]).length?' · '+k.lich.filter(m=>m.xong).length+'/'+k.lich.length+' mốc':''}</span></td>
-  <td>${hienThiLink(k.mc,'Mở link',{tieuDe:k.ma+' · '+k.ten,url:k.mc,onSave:v=>{const it=KH(k.id);if(it){it.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuKH)dataApi.luuKH(it);}}})}</td>
+  <td>${hienThiLink(k.mc,'Mở link',{tieuDe:k.ma+' · '+k.ten,url:k.mc,onSave:async v=>{const it=KH(k.id);if(it) await dataApi.luuKH({...it,mc:v},{isUpdate:true});}})}</td>
   <td class="n" style="white-space:nowrap">
    <button class="b-s" onclick="formKH(${k.id})">Sửa</button>
    <button class="b-s b-no" onclick="xoaKH(${k.id})">Xoá</button>
@@ -321,12 +321,27 @@ function lichCT(k){
   :'<p class="t2" style="margin:0">Chia đầu việc thành các mốc nhỏ để biết đang tắc ở khâu nào, ai đang giữ việc.</p>'}
   <div class="row" style="margin-top:12px"><button class="b-p" onclick="formMoc(${k.id})">+ Thêm mốc công tác</button></div></div>`;
 }
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-moc]');if(!b)return;
+ if(state.role==='cd'||(!coQuyen('ql_kh')&&!isAdmin())){alert('Bạn không có quyền cập nhật mốc công tác.');return;}
  const [ki,mi]=b.dataset.moc.split('-').map(Number);
- const m=KH(ki).lich.find(x=>x.id===mi);m.xong=!m.xong;save();render();
+ const kh=KH(ki);
+ const m=kh&&kh.lich?kh.lich.find(x=>x.id===mi):null;
+ if(!m)return;
+ const prev=m.xong;
+ m.xong=!prev;
+ render();
+ try{
+  await dataApi.luuMoc(ki,m,{isUpdate:true});
+  render();
+ }catch(err){
+  m.xong=prev;
+  alert('Lỗi cập nhật mốc công tác (đã hoàn tác): '+(err.message||err));
+  render();
+ }
 });
 function formMoc(khId,mocId){
+ if(state.role==='cd'||(!coQuyen('ql_kh')&&!isAdmin())){alert('Bạn không có quyền quản lý mốc công tác.');return;}
  const k=KH(khId),m=mocId?k.lich.find(x=>x.id===mocId):{ten:'',han:k.hanChot,nsId:k.ptIds[0]||0,xong:false};
  dlgBody.innerHTML=`<h2>${mocId?'Sửa':'Thêm'} mốc công tác</h2>
  <p class="sub">${esc(k.ma)} · ${esc(k.ten)}</p>
@@ -339,15 +354,29 @@ function formMoc(khId,mocId){
   ${mocId?'<button type="button" class="b-no" onclick="xoaMoc('+khId+','+mocId+')">Xoá mốc</button>':''}
   <button type="button" class="b-p end" id="luu">Lưu</button></div>`;
  dlg.showModal();huy.onclick=()=>dlg.close();
- luu.onclick=()=>{
+ luu.onclick=async ()=>{
   if(!m_ten.value.trim())return m_ten.focus();
   const o={ten:m_ten.value.trim(),han:m_han.value,nsId:+m_ns.value,xong:m_xong.checked};
-  if(mocId)Object.assign(k.lich.find(x=>x.id===mocId),o);
-  else{k.lich=k.lich||[];k.lich.push({id:nextId(k.lich.length?k.lich:[{id:0}]),...o})}
-  save();dlg.close();render();
+  luu.disabled=true;luu.textContent='Đang lưu...';
+  try{
+   const rec=mocId?{...m,...o,id:mocId}:o;
+   await dataApi.luuMoc(khId,rec,{isNew:!mocId});
+   dlg.close();render();
+  }catch(err){
+   luu.disabled=false;luu.textContent='Lưu';
+   alert('Lỗi lưu mốc công tác: '+(err.message||err));
+  }
  };
 }
-function xoaMoc(khId,mocId){const k=KH(khId);k.lich=k.lich.filter(x=>x.id!==mocId);save();dlg.close();render()}
+async function xoaMoc(khId,mocId){
+ if(state.role==='cd'||(!coQuyen('ql_kh')&&!isAdmin())){alert('Bạn không có quyền xoá mốc công tác.');return;}
+ try{
+  await dataApi.xoaMoc(khId,mocId);
+  dlg.close();render();
+ }catch(err){
+  alert('Lỗi xoá mốc công tác: '+(err.message||err));
+ }
+}
 PAGES.khct=function(){
  const k=KH(state.khId)||DB.kh[0],cr=critOf(k.crit);
  const dau=`<div class="head"><div><p class="t2"><a href="#hoatdong" data-go="hoatdong">← Công tác theo timeline</a></p>
@@ -391,7 +420,7 @@ PAGES.khct=function(){
  <div class="scroll"><table><thead><tr><th>Chi đoàn</th><th class="n">Sĩ số</th><th class="n">Chỉ tiêu</th><th class="n">Thực hiện</th>
   <th class="n">Tỷ lệ</th><th>Ngày nộp</th><th>Minh chứng</th><th>Trạng thái</th><th class="n">Điểm</th><th style="min-width:130px">Thao tác</th></tr></thead>
  <tbody>${t.rows.map(r=>{
-  const mcHtml = r.b ? hienThiLink(r.b.mc, 'Mở link', {tieuDe:'Minh chứng: '+k.ma+' - '+r.cd.ma, url:r.b.mc, onSave:v=>{r.b.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuBC)dataApi.luuBC(r.b);}}) : '<span class="t2">–</span>';
+  const mcHtml = r.b ? hienThiLink(r.b.mc, 'Mở link', {tieuDe:'Minh chứng: '+k.ma+' - '+r.cd.ma, url:r.b.mc, onSave:async v=>{await dataApi.luuBC({...r.b, mc:v},{isUpdate:true});}}) : '<span class="t2">–</span>';
   const stSelect = r.b ? `
    <select class="st-sel" onchange="doiTrangThaiBC(${r.b.id}, this.value)" title="Đổi trạng thái báo cáo">
     <option value="ok" ${r.b.status==='ok'?'selected':''}>✓ Đã duyệt</option>
@@ -603,7 +632,12 @@ PAGES.duyet=function(){
  <div class="card"><div class="scroll"><table><thead><tr><th>Nội dung</th><th>Chi đoàn</th><th>Loại</th><th>Tiêu chí</th>
   <th class="n">Kết quả</th><th>Ngày</th><th class="n">Điểm</th><th>Trạng thái</th><th style="min-width:180px">Thao tác</th></tr></thead>
  <tbody>${items.map(x=>{
-  const mcHtml = hienThiLink(x.mc, 'Mở link', {tieuDe:'Minh chứng: '+x.ten+' ('+CD(x.cdId).ma+')', url:x.mc, onSave:v=>{const it=(x.t==='bc'?DB.bc:DB.hd).find(i=>i.id===x.id);if(it){it.mc=v;if(typeof dataApi!=='undefined'){if(x.t==='bc'&&dataApi.luuBC)dataApi.luuBC(it);else if(dataApi.luuHD)dataApi.luuHD(it);}}}});
+  const mcHtml = hienThiLink(x.mc, 'Mở link', {tieuDe:'Minh chứng: '+x.ten+' ('+CD(x.cdId).ma+')', url:x.mc, onSave:async v=>{
+   const it=(x.t==='bc'?DB.bc:DB.hd).find(i=>i.id===x.id);
+   if(!it)return;
+   if(x.t==='bc') await dataApi.luuBC({...it,mc:v},{isUpdate:true});
+   else await dataApi.luuHD({...it,mc:v},{isUpdate:true});
+  }});
   const stSel = `
    <select class="st-sel" onchange="${x.t==='bc'?'doiTrangThaiBC':'doiTrangThaiHD'}(${x.id}, this.value)" title="Đổi trạng thái">
     <option value="ok" ${x.st==='ok'?'selected':''}>✓ Đã duyệt</option>
@@ -633,14 +667,9 @@ PAGES.duyet=function(){
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]');if(!b)return;
  const [t,s]=b.dataset.act.split('-'),id=+b.dataset.id;
- const o=(t==='bc'||t==='kh')?DB.bc.find(x=>x.id===id):DB.hd.find(x=>x.id===id);
- if(s==='no'){
-  const lyDo=prompt('Nhập lý do trả lại để chi đoàn sửa bổ sung:', o.nx || 'Minh chứng chưa đủ, đề nghị bổ sung ảnh hoạt động và danh sách ký tên.');
-  if(lyDo===null) return; // người dùng bấm Cancel
-  o.nx=lyDo.trim()||'Minh chứng chưa đạt yêu cầu, đề nghị bổ sung nộp lại.';
- }
- o.status=s==='ok'?'ok':(s==='no'?'no':'wait');
- save();render();
+ const nextSt=s==='ok'?'ok':(s==='no'?'no':'wait');
+ if(t==='bc'||t==='kh') doiTrangThaiBC(id,nextSt);
+ else doiTrangThaiHD(id,nextSt);
 });
 
 PAGES.sosanh=function(){
@@ -924,7 +953,7 @@ PAGES.nhiemvu=function(){
  <tbody>${rows.map(({k,b,ct,d})=>{
   const ty=b?Math.round(b.soLuot/ct*100):0;
   const muon=!b&&k.hanChot<TODAY&&k.batDau<=TODAY;
-  const mcHtml=b?hienThiLink(b.mc,'Mở link',{tieuDe:'Minh chứng: '+k.ma,url:b.mc,onSave:v=>{b.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuBC)dataApi.luuBC(b);}}):'<span class="t2">–</span>';
+  const mcHtml=b?hienThiLink(b.mc,'Mở link',{tieuDe:'Minh chứng: '+k.ma,url:b.mc,onSave:async v=>{await dataApi.luuBC({...b,mc:v},{isUpdate:true});}}):'<span class="t2">–</span>';
   return `<tr><td><b>${esc(k.ma)}</b>${k.batBuoc?' '+pill('BB','p-xs'):''}</td>
   <td>${esc(k.ten)}${b&&b.status==='no'?`<div class="t2" style="color:var(--crit)">Nhận xét: ${esc(b.nx)}</div>`:''}</td>
   <td class="t2">${critOf(k.crit).ten}</td>
@@ -936,7 +965,7 @@ PAGES.nhiemvu=function(){
   <td>${b?pillST(b.status):(muon?pill('Quá hạn','p-crit'):(k.batDau>TODAY?pill('Sắp tới','p-mute'):pill('Chưa nộp','p-warn')))}</td>
   <td class="n" style="white-space:nowrap">
    ${k.batDau<=TODAY?`<button class="b-s ${!b?'b-p':b.status==='no'?'b-no':''}" onclick="formBC(${k.id})">${!b?'Nộp báo cáo':(b.status==='ok'?'Sửa / Bổ sung':'Sửa báo cáo')}</button>`:'<span class="t2">Chưa mở</span>'}
-   ${b?`<button class="b-s" type="button" data-edit-link-id="${dangKySuaLink({tieuDe:'Minh chứng: '+k.ma,url:b.mc,onSave:v=>{b.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuBC)dataApi.luuBC(b);}})}" title="Sửa link">🔗 Sửa link</button>`:''}
+   ${b?`<button class="b-s" type="button" data-edit-link-id="${dangKySuaLink({tieuDe:'Minh chứng: '+k.ma,url:b.mc,onSave:async v=>{await dataApi.luuBC({...b,mc:v},{isUpdate:true});}})}" title="Sửa link">🔗 Sửa link</button>`:''}
   </td></tr>`}).join('')}
  </tbody></table></div></div>`;
 };
@@ -951,7 +980,7 @@ PAGES.tuchuc=function(){
  <tbody>${hd.map(h=>`<tr><td><b>${esc(h.ten)}</b></td>
   <td class="t2">${critOf(h.crit).ten}</td><td class="t2">${dmy(h.ngay)}</td><td class="n">${h.sl||'–'}</td>
   <td class="n">${h.diem}</td>
-  <td>${hienThiLink(h.mc,'Mở link',{tieuDe:'Minh chứng: '+h.ten,url:h.mc,onSave:v=>{h.mc=v;if(typeof dataApi!=='undefined'&&dataApi.luuHD)dataApi.luuHD(h);}})}</td>
+  <td>${hienThiLink(h.mc,'Mở link',{tieuDe:'Minh chứng: '+h.ten,url:h.mc,onSave:async v=>{await dataApi.luuHD({...h,mc:v},{isUpdate:true});}})}</td>
   <td>${pillST(h.status)}</td>
   <td class="n" style="white-space:nowrap">
    <button class="b-s" onclick="formHD(${h.id})">✏️ Sửa</button>
@@ -989,7 +1018,7 @@ function cdNhanSu(){
   <td class="n"><button class="b-s" onclick="formDV(${d.id})">Sửa</button> <button class="b-s b-no" onclick="xoaDV(${d.id})">Xoá</button></td></tr>`).join('')
   ||'<tr><td colspan="9" class="empty">Chưa có đoàn viên nào.</td></tr>'}</tbody></table></div></div>`;
 }
-function togglePhi(id){
+async function togglePhi(id){
  const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
  const d=DB.dv.find(x=>x.id===id);
  if(!d) return;
@@ -997,9 +1026,17 @@ function togglePhi(id){
   alert('Không thể sửa đoàn phí của chi đoàn khác.');
   return;
  }
- d.doanPhi=!d.doanPhi;
- if(typeof dataApi !== 'undefined' && dataApi.luuDV) dataApi.luuDV(d).catch(e=>console.error(e));
+ const prev = d.doanPhi;
+ d.doanPhi = !prev;
  render();
+ try{
+  await dataApi.luuDV(d, { isUpdate: true });
+  render();
+ }catch(e){
+  d.doanPhi = prev;
+  alert('Lỗi cập nhật đoàn phí trên máy chủ (đã hoàn tác): ' + (e.message || e));
+  render();
+ }
 }
 function xoaDV(id){
  const curUser = typeof auth !== 'undefined' ? auth.currentUser : null;
@@ -1010,9 +1047,12 @@ function xoaDV(id){
   return;
  }
  xacNhan('Xoá đoàn viên?',d.ten+' sẽ bị xoá khỏi sổ chi đoàn.', async ()=>{
-  if(typeof dataApi !== 'undefined' && dataApi.xoaDV) await dataApi.xoaDV(id).catch(e=>console.error(e));
-  else DB.dv=DB.dv.filter(x=>x.id!==id);
-  render();
+  try{
+   await dataApi.xoaDV(id);
+   render();
+  }catch(e){
+   alert('Lỗi xoá đoàn viên trên máy chủ: ' + (e.message || e));
+  }
  });
 }
 
@@ -1107,17 +1147,17 @@ function formBC(khId, customCdId){
    alert('Đường dẫn minh chứng không an toàn.');
    return;
   }
-  const reportObj = b ? Object.assign(b, {soLuot: so, mc: mcVal, ngayNop: b.ngayNop||TODAY, treHan, status: st, nx: st==='ok'?'':nx})
-                      : {id: nextId(DB.bc), khId, cdId: c.id, soLuot: so, ngayNop: TODAY, treHan, mc: mcVal, status: st, nx};
+  const reportObj = b ? { ...b, soLuot: so, mc: mcVal, ngayNop: b.ngayNop||TODAY, treHan, status: st, nx: st==='ok'?'':nx }
+                      : { khId, cdId: c.id, soLuot: so, ngayNop: TODAY, treHan, mc: mcVal, status: st, nx };
+  luu.disabled = true;
+  luu.textContent = 'Đang lưu...';
   try {
-   if(typeof dataApi !== 'undefined' && dataApi.luuBC){
-    await dataApi.luuBC(reportObj);
-   } else {
-    if(!b) DB.bc.push(reportObj);
-   }
+   await dataApi.luuBC(reportObj, { isNew: !b });
    dlg.close(); render();
   } catch(err){
-   alert('Lỗi lưu báo cáo: ' + err.message);
+   luu.disabled = false;
+   luu.textContent = isLcd ? 'Lưu cập nhật' : 'Gửi duyệt';
+   alert('Lỗi lưu báo cáo: ' + (err.message || err));
   }
  };
 }
@@ -1134,11 +1174,10 @@ function xoaBC(id){
  }
  xacNhan('Xoá báo cáo này?', 'Số liệu và minh chứng đã nộp của chi đoàn sẽ bị xoá.', async ()=>{
   try {
-   if(typeof dataApi !== 'undefined' && dataApi.xoaBC) await dataApi.xoaBC(id);
-   else DB.bc = DB.bc.filter(x => x.id !== id);
+   await dataApi.xoaBC(id);
    dlg.close(); render();
   } catch(err){
-   alert('Lỗi xóa báo cáo: ' + err.message);
+   alert('Lỗi xóa báo cáo: ' + (err.message || err));
   }
  });
 }
@@ -1209,16 +1248,19 @@ function formHD(id){
   const o = {
    ten: h_ten.value.trim(), crit: h_crit.value, ngay: h_ngay.value,
    sl: +h_sl.value||0, diem: diemVal,
-   mc: mcVal, status: st
+   mc: mcVal, status: st,
+   cdId: id ? h.cdId : (isCd ? curUser.cdId : state.cdId)
   };
-  if(id) Object.assign(h, o);
-  else Object.assign(h, o, {id: nextId(DB.hd), cdId: isCd ? curUser.cdId : state.cdId});
+  const rec = id ? { ...h, ...o, id } : o;
+  luu.disabled = true;
+  luu.textContent = 'Đang lưu...';
   try {
-   if(typeof dataApi !== 'undefined' && dataApi.luuHD) await dataApi.luuHD(h);
-   else if(!id) DB.hd.push(h);
+   await dataApi.luuHD(rec, { isNew: !id });
    dlg.close(); render();
   } catch(err){
-   alert('Lỗi lưu hoạt động: ' + err.message);
+   luu.disabled = false;
+   luu.textContent = id ? 'Lưu' : 'Gửi duyệt';
+   alert('Lỗi lưu hoạt động: ' + (err.message || err));
   }
  };
 }
@@ -1233,11 +1275,10 @@ function xoaHD(id){
  }
  xacNhan('Xoá hoạt động tự tổ chức?', (h?h.ten:'Hoạt động này') + ' sẽ bị xoá vĩnh viễn.', async ()=>{
   try {
-   if(typeof dataApi !== 'undefined' && dataApi.xoaHD) await dataApi.xoaHD(id);
-   else DB.hd = DB.hd.filter(x => x.id !== id);
+   await dataApi.xoaHD(id);
    dlg.close(); render();
   } catch(err){
-   alert('Lỗi xóa hoạt động: ' + err.message);
+   alert('Lỗi xóa hoạt động: ' + (err.message || err));
   }
  });
 }
@@ -1273,14 +1314,16 @@ function formDV(id){
   const targetCdId = isCd ? curUser.cdId : state.cdId;
   const o={ten:d_ten.value.trim(),mssv:mssvVal,cv:d_cv.value,drl:+d_drl.value,soHD:+d_hd.value,
    doanPhi:d_phi.checked,ghiChu:d_gc.value.trim(), cdId: targetCdId};
-  if(id) Object.assign(d, o);
-  else Object.assign(d, o, {id: nextId(DB.dv)});
+  const rec = id ? { ...d, ...o, id } : o;
+  luu.disabled = true;
+  luu.textContent = 'Đang lưu...';
   try {
-   if(typeof dataApi !== 'undefined' && dataApi.luuDV) await dataApi.luuDV(d);
-   else if(!id) DB.dv.push(d);
+   await dataApi.luuDV(rec, { isNew: !id });
    dlg.close(); render();
   } catch(err){
-   alert('Lỗi lưu đoàn viên: ' + err.message);
+   luu.disabled = false;
+   luu.textContent = 'Lưu';
+   alert('Lỗi lưu đoàn viên: ' + (err.message || err));
   }
  };
 }
@@ -1326,7 +1369,7 @@ function formKH(id){
   if(!v) return alert('Vui lòng nhập link trước khi thử mở!');
   window.open(chuanHoaLink(v), '_blank', 'noopener');
  };
- luu.onclick = () => {
+ luu.onclick = async () => {
   if(!k_ten.value.trim()) return k_ten.focus();
   const ptIds=[...k_pt.selectedOptions].map(o=>+o.value);
   const o={ten:k_ten.value.trim(),crit:k_crit.value,tienDo:k_td.value,
@@ -1335,9 +1378,22 @@ function formKH(id){
    chiTieu:+k_ct.value,donVi:k_dv.value,diem:+k_d.value,batBuoc:k_bb.checked,
    ketQua:k_kq.value.trim(),mc:k_mc.value.trim()};
   if(!o.ban.length)o.ban=['Thường trực'];
-  if(id){Object.assign(KH(id),o);save();dlg.close();render()}
-  else{const nid=nextId(DB.kh);DB.kh.push({id:nid,ma:'KH-'+String(nid).padStart(2,'0'),note:'',lich:[],...o});
-   save();dlg.close();go('khct',{khId:nid})}
+  luu.disabled = true;
+  luu.textContent = 'Đang lưu...';
+  try {
+   if(id){
+    const cur=KH(id);
+    await dataApi.luuKH({...cur,...o,id},{isUpdate:true});
+    dlg.close();render();
+   } else {
+    const saved=await dataApi.luuKH({note:'',lich:[],...o},{isNew:true});
+    dlg.close();go('khct',{khId:saved.data.id});
+   }
+  } catch(err) {
+   luu.disabled = false;
+   luu.textContent = id ? 'Lưu' : 'Ban hành';
+   alert('Lỗi lưu kế hoạch trên máy chủ: ' + (err.message || err));
+  }
  };
 }
 
@@ -1349,12 +1405,12 @@ function xoaKH(id){
  }
  const k=KH(id);
  xacNhan('Xoá đầu việc '+k.ma+'?', (k?k.ten:'Đầu việc này')+' và toàn bộ báo cáo nộp của các chi đoàn cho việc này sẽ bị xoá.', async ()=>{
-  if(typeof dataApi !== 'undefined' && dataApi.xoaKH) await dataApi.xoaKH(id).catch(e=>console.error(e));
-  else {
-   DB.kh = DB.kh.filter(x=>x.id!==id);
-   DB.bc = DB.bc.filter(x=>x.khId!==id);
+  try {
+   await dataApi.xoaKH(id);
+   dlg.close(); go('hoatdong');
+  } catch(err) {
+   alert('Lỗi xoá đầu việc trên máy chủ: ' + (err.message || err));
   }
-  dlg.close(); go('hoatdong');
  });
 }
 
@@ -1411,16 +1467,20 @@ function formCD(id){
    sdt: cd_sdt.value.trim(),
    diemTru: Math.max(0, +cd_dt.value||0)
   };
-  if(id) {
-   Object.assign(CD(id), o);
-   if(typeof dataApi !== 'undefined' && dataApi.luuCD) await dataApi.luuCD(CD(id)).catch(e=>console.error(e));
-  } else {
-   const nid = nextId(DB.cd);
-   const newCd = {id: nid, ...o};
-   DB.cd.push(newCd);
-   if(typeof dataApi !== 'undefined' && dataApi.luuCD) await dataApi.luuCD(newCd).catch(e=>console.error(e));
+  luu.disabled = true;
+  luu.textContent = 'Đang lưu...';
+  try {
+   if(id) {
+    await dataApi.luuCD({...CD(id), ...o, id}, { isUpdate: true });
+   } else {
+    await dataApi.luuCD(o, { isNew: true });
+   }
+   dlg.close(); render();
+  } catch(err) {
+   luu.disabled = false;
+   luu.textContent = 'Lưu';
+   alert('Lỗi lưu thông tin chi đoàn: ' + (err.message || err));
   }
-  dlg.close(); render();
  };
 }
 
@@ -1432,15 +1492,12 @@ function xoaCD(id){
  }
  const c = CD(id);
  xacNhan('Xoá chi đoàn '+c.ma+'?', 'Toàn bộ báo cáo, hoạt động và đoàn viên của chi đoàn này sẽ bị xoá.', async ()=>{
-  if(typeof dataApi !== 'undefined' && dataApi.xoaCD) await dataApi.xoaCD(id).catch(e=>console.error(e));
-  else {
-   DB.cd = DB.cd.filter(x=>x.id!==id);
-   DB.bc = DB.bc.filter(x=>x.cdId!==id);
-   DB.hd = DB.hd.filter(x=>x.cdId!==id);
-   DB.dv = DB.dv.filter(x=>x.cdId!==id);
-   DB.ns.forEach(u=>{u.theoDoi = (u.theoDoi||[]).filter(i=>i!==id)});
+  try {
+   await dataApi.xoaCD(id);
+   if(state.cdId===id && DB.cd.length) state.cdId=DB.cd[0].id;
+   dlg.close(); render();
+  } catch(err) {
+   alert('Lỗi xoá chi đoàn trên máy chủ: ' + (err.message || err));
   }
-  if(state.cdId===id && DB.cd.length) state.cdId=DB.cd[0].id;
-  dlg.close(); render();
  });
 }

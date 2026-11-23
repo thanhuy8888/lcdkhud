@@ -2,6 +2,8 @@
 /* ===================== TỰ KIỂM TRA CÔNG THỨC ===================== */
 (function selfCheck(){
  const bak=JSON.stringify(DB);
+ window.__SELF_CHECK_MODE__ = true;
+ try {
  DB={cd:[{id:9,ma:'TEST',ten:'TEST',nganh:'',siSo:50,bt:'',sdt:'',diemTru:3}],
   ns:[{id:1,ten:'A',vaiTro:'UV BCH',ban:'Thường trực',lop:'',sdt:'',mssv:'',fb:'',bch:1,theoDoi:[9]}],
   hop:[{id:1,ten:'h1',ngay:'2026-01-05',noiDung:'',bienBan:''},{id:2,ten:'h2',ngay:'2026-01-12',noiDung:'',bienBan:''}],
@@ -53,8 +55,11 @@
  console.assert(idTep()!==idTep(),'mã tệp bị trùng');
  console.assert(tenNhom('nguon').includes('2k7')&&tenNhom('bch').includes('Ban Chấp hành'),'tên khối nhân sự sai');
  console.assert(matTienDo('Hoàn thành')==='xong'&&matTienDo('Đang triển khai')==='dang'&&matTienDo('Chưa triển khai')==='chua','dò tiến độ sai');
- DB=JSON.parse(bak);
  console.log('✓ Tự kiểm tra công thức KPI, chuyên cần và nhập/xuất: đạt');
+ } finally {
+  window.__SELF_CHECK_MODE__ = false;
+  DB=JSON.parse(bak);
+ }
 })();
 
 if(typeof auth !== 'undefined'){
