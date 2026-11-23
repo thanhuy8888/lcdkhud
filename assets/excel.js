@@ -446,30 +446,676 @@ function apDungDD(rows) {
  };
 }
 
+/* ===================== CHUẨN HÓA, DRY-RUN, BATCH IMPORT & ĐỐI SOÁT ===================== */
+const chuanHoaChuoi = v => String(v ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
+const chuanHoaMaSo = v => String(v ?? '').normalize('NFC').trim().replace(/^'+/, '').replace(/^(\d+)\.0+$/, '$1');
+function ngayISOChuan(t) {
+ const s = chuanHoaChuoi(t);
+ if (!s) return '';
+ let y, m, d;
+ let mt = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+ if (mt) { d = +mt[1]; m = +mt[2]; y = +mt[3]; }
+ else {
+  mt = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!mt) return '';
+  y = +mt[1]; m = +mt[2]; d = +mt[3];
+ }
+ const dt = new Date(Date.UTC(y, m - 1, d));
+ if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) return '';
+ return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+async function tinhChecksumImport(loai, rows) {
+ const canon = JSON.stringify({ loai, rows });
+ if (typeof storageApi !== 'undefined' && typeof storageApi.sha256Hex === 'function') {
+  return storageApi.sha256Hex(new TextEncoder().encode(canon).buffer);
+ }
+ throw new Error('Không tính được mã băm SHA-256 của tệp nguồn.');
+}
+
+/** Dry-run 100% chỉ-đọc: chuẩn hóa, kiểm tra quyền/trùng/ràng buộc, không sửa DB bộ nhớ hoặc máy chủ */
+function dryRunImport(loai, rawRows) {
+ if (!Array.isArray(rawRows) || rawRows.length < 2) {
+  return { loi: 'File không có dòng tiêu đề hoặc không có dữ liệu.' };
+ }
+ const h = rawRows[0].map(c => chuanHoaChuoi(c));
+ const dataRows = rawRows.slice(1).filter(r => Array.isArray(r) && r.some(c => chuanHoaChuoi(c) !== ''));
+ if (!dataRows.length) return { loi: 'Không có dòng dữ liệu nào khác trống.' };
+
+ const strippedCols = [];
+ h.forEach(col => {
+  const b = bo(col);
+  if (['role', 'vai tro he thong', 'quyen', 'active'].includes(b)) strippedCols.push(col);
+  if (loai === 'bc' && ['trang thai', 'status', 'diem quy doi', 'diem'].includes(b)) strippedCols.push(col);
+ });
+
+ const actions = [];
+ const errors = [];
+ const skipped = [];
+ const duplicates = [];
+ let createCount = 0, updateCount = 0, skipCount = 0, errorCount = 0;
+
+ if (loai === 'dv') {
+  if (state.role === 'cd' && !coQuyen('ql_doanvien')) return { loi: 'Tài khoản chi đoàn không có quyền quản lý đoàn viên.' };
+  if (state.role !== 'cd' && !coQuyen('ql_nhansu') && !isAdmin()) return { loi: 'Tài khoản không có quyền nhập danh sách đoàn viên.' };
+  const iTen = cot(h, 'ho va ten', 'ho ten', 'ten');
+  const iMs = cot(h, 'mssv', 'ma so');
+  const iCd = cot(h, 'chi doan', 'ma chi doan');
+  const iCv = cot(h, 'chuc vu');
+  const iDrl = cot(h, 'drl', 'diem ren luyen');
+  const iHd = cot(h, 'so hd', 'so hoat dong');
+  const iPhi = cot(h, 'doan phi');
+  const iGc = cot(h, 'ghi chu');
+  if (iTen < 0 || iMs < 0) return { loi: 'File thiếu cột bắt buộc “Họ và tên” hoặc “MSSV”.' };
+  if (state.role !== 'cd' && iCd < 0) return { loi: 'File thiếu cột “Chi đoàn” khi nhập ở cấp LCĐ.' };
+
+  const seenMssv = new Map();
+  dataRows.forEach((r, idx) => {
+   const line = idx + 2;
+   const ten = chuanHoaChuoi(r[iTen]);
+   const mssv = chuanHoaMaSo(r[iMs]);
+   if (!ten || !mssv) {
+    errorCount++;
+    errors.push({ line, msg: 'Thiếu Họ và tên hoặc MSSV.' });
+    return;
+   }
+   if (seenMssv.has(mssv)) {
+    errorCount++;
+    const msg = `Trùng MSSV "${mssv}" với dòng ${seenMssv.get(mssv)} trong cùng file.`;
+    duplicates.push({ line, key: mssv, msg });
+    errors.push({ line, msg });
+    return;
+   }
+   seenMssv.set(mssv, line);
+
+   let cdId = state.role === 'cd' ? state.cdId : null;
+   if (cdId === null) {
+    const cdVal = chuanHoaChuoi(r[iCd]);
+    const m = DB.cd.find(c => bo(c.ma) === bo(cdVal) || bo(c.ten) === bo(cdVal));
+    if (!m) {
+     errorCount++;
+     errors.push({ line, msg: `Không tìm thấy mã chi đoàn "${cdVal}".` });
+     return;
+    }
+    cdId = m.id;
+   } else if (iCd >= 0 && chuanHoaChuoi(r[iCd])) {
+    const myCd = CD(cdId);
+    const cdVal = chuanHoaChuoi(r[iCd]);
+    if (myCd && bo(myCd.ma) !== bo(cdVal) && bo(myCd.ten) !== bo(cdVal)) {
+     errorCount++;
+     errors.push({ line, msg: `Chi đoàn "${cdVal}" không khớp phạm vi chi đoàn đang đăng nhập (${myCd.ma}).` });
+     return;
+    }
+   }
+
+   let drl = 0;
+   if (iDrl >= 0 && chuanHoaChuoi(r[iDrl]) !== '') {
+    const n = Number(chuanHoaChuoi(r[iDrl]));
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+     errorCount++;
+     errors.push({ line, msg: `ĐRL "${r[iDrl]}" không hợp lệ (phải từ 0 đến 100).` });
+     return;
+    }
+    drl = Math.round(n);
+   }
+   let soHD = 0;
+   if (iHd >= 0 && chuanHoaChuoi(r[iHd]) !== '') {
+    const n = Number(chuanHoaChuoi(r[iHd]));
+    if (!Number.isFinite(n) || n < 0) {
+     errorCount++;
+     errors.push({ line, msg: `Số HĐ "${r[iHd]}" không hợp lệ (phải >= 0).` });
+     return;
+    }
+    soHD = Math.round(n);
+   }
+   const cvRaw = iCv >= 0 ? chuanHoaChuoi(r[iCv]) : '';
+   const validCv = ['Bí thư', 'Phó Bí thư', 'Uỷ viên BCH', 'Đoàn viên'];
+   const cv = cvRaw ? (validCv.find(x => bo(x) === bo(cvRaw)) || '') : 'Đoàn viên';
+   if (!cv) {
+    errorCount++;
+    errors.push({ line, msg: `Chức vụ "${cvRaw}" không thuộc danh mục (${validCv.join(', ')}).` });
+    return;
+   }
+
+   const recPayload = {
+    cdId,
+    ten,
+    mssv,
+    cv,
+    drl,
+    soHD,
+    doanPhi: iPhi >= 0 ? ['x', 'co', '1', 'da nop', 'roi', 'true', 'v'].includes(bo(r[iPhi])) : false,
+    ghiChu: iGc >= 0 ? chuanHoaChuoi(r[iGc]) : ''
+   };
+
+   const existing = DB.dv.find(d => d.mssv && d.mssv === mssv);
+   if (existing) {
+    if (existing.cdId !== cdId) {
+     errorCount++;
+     const ownerCd = CD(existing.cdId);
+     errors.push({ line, msg: `Xung đột MSSV "${mssv}": đang thuộc chi đoàn ${ownerCd ? ownerCd.ma : existing.cdId}, hệ thống không tự ý chuyển chi đoàn.` });
+     return;
+    }
+    updateCount++;
+    actions.push({
+     line, table: 'doan_vien', action: 'updated',
+     before: {
+      cd_id: existing.cdId, ten: existing.ten, mssv: existing.mssv, cv: existing.cv,
+      drl: existing.drl, doan_phi: existing.doanPhi, so_hd: existing.soHD, ghi_chu: existing.ghiChu
+     },
+     record: { ...existing, ...recPayload }
+    });
+   } else {
+    createCount++;
+    actions.push({ line, table: 'doan_vien', action: 'created', before: null, record: recPayload });
+   }
+  });
+ } else if (loai === 'bc') {
+  if (state.role === 'cd' && !coQuyen('nop_bc')) return { loi: 'Tài khoản chi đoàn không có quyền nộp báo cáo.' };
+  if (state.role !== 'cd' && !coQuyen('duyet_bc') && !isAdmin()) return { loi: 'Tài khoản không có quyền nhập báo cáo kế hoạch.' };
+  const iKh = cot(h, 'ma ke hoach', 'ma kh', 'ke hoach');
+  const iCd = cot(h, 'chi doan', 'ma chi doan');
+  const iSo = cot(h, 'so luot', 'so luong', 'thuc hien');
+  const iNgay = cot(h, 'ngay nop');
+  const iMc = cot(h, 'minh chung');
+  if (iKh < 0 || iSo < 0) return { loi: 'File thiếu cột “Mã kế hoạch” hoặc “Số lượt”.' };
+  if (state.role !== 'cd' && iCd < 0) return { loi: 'File thiếu cột “Chi đoàn” khi nhập ở cấp LCĐ.' };
+
+  const seenKey = new Map();
+  dataRows.forEach((r, idx) => {
+   const line = idx + 2;
+   const khCode = chuanHoaMaSo(r[iKh]);
+   const k = DB.kh.find(x => bo(x.ma) === bo(khCode));
+   if (!k) {
+    errorCount++;
+    errors.push({ line, msg: `Không tìm thấy mã kế hoạch "${khCode}".` });
+    return;
+   }
+   let cdId = state.role === 'cd' ? state.cdId : null;
+   if (cdId === null) {
+    const cdVal = chuanHoaChuoi(r[iCd]);
+    const m = DB.cd.find(c => bo(c.ma) === bo(cdVal) || bo(c.ten) === bo(cdVal));
+    if (!m) {
+     errorCount++;
+     errors.push({ line, msg: `Không tìm thấy chi đoàn "${cdVal}".` });
+     return;
+    }
+    cdId = m.id;
+   }
+   const key = `${k.id}:${cdId}`;
+   if (seenKey.has(key)) {
+    errorCount++;
+    const msg = `Trùng báo cáo (${k.ma} · ${CD(cdId).ma}) với dòng ${seenKey.get(key)} trong cùng file.`;
+    duplicates.push({ line, key, msg });
+    errors.push({ line, msg });
+    return;
+   }
+   seenKey.set(key, line);
+
+   const nSo = Number(chuanHoaChuoi(r[iSo]));
+   if (!Number.isFinite(nSo) || nSo < 0) {
+    errorCount++;
+    errors.push({ line, msg: `Số lượt "${r[iSo]}" không hợp lệ.` });
+    return;
+   }
+   const rawNgay = iNgay >= 0 ? chuanHoaChuoi(r[iNgay]) : '';
+   const ngayNop = rawNgay ? ngayISOChuan(rawNgay) : TODAY;
+   if (rawNgay && !ngayNop) {
+    errorCount++;
+    errors.push({ line, msg: `Ngày nộp "${rawNgay}" không đúng định dạng hoặc không tồn tại.` });
+    return;
+   }
+   const rawMc = iMc >= 0 ? chuanHoaChuoi(r[iMc]) : '';
+   if (rawMc && rawMc !== '(chưa có)' && !isSafeUrl(rawMc)) {
+    errorCount++;
+    errors.push({ line, msg: `Link minh chứng "${rawMc}" không an toàn hoặc sai URL.` });
+    return;
+   }
+
+   const existing = bcOf(k.id, cdId);
+   if (existing && state.role === 'cd' && existing.status === 'ok') {
+    skipCount++;
+    skipped.push({ line, msg: `${k.ma} đã được LCĐ duyệt chính thức, bỏ qua.` });
+    return;
+   }
+   // Không bao giờ cho phép nâng trạng thái duyệt từ file import: luôn reset về 'wait'
+   const recPayload = {
+    khId: k.id,
+    cdId,
+    soLuot: Math.round(nSo),
+    ngayNop,
+    treHan: ngayNop > k.hanChot,
+    mc: rawMc || '(chưa có)',
+    status: 'wait',
+    nx: existing ? existing.nx : ''
+   };
+   if (existing) {
+    updateCount++;
+    actions.push({
+     line, table: 'bao_cao', action: 'updated',
+     before: { so_luot: existing.soLuot, ngay_nop: existing.ngayNop, mc: existing.mc, status: existing.status, nx: existing.nx },
+     record: { ...existing, ...recPayload }
+    });
+   } else {
+    createCount++;
+    actions.push({ line, table: 'bao_cao', action: 'created', before: null, record: recPayload });
+   }
+  });
+ } else if (loai === 'ns') {
+  if (state.role === 'cd' || (!coQuyen('ql_nhansu') && !isAdmin())) return { loi: 'Chỉ LCĐ hoặc Quản trị viên mới có quyền nhập danh sách nhân sự LCĐ.' };
+  const iTen = cot(h, 'ho va ten', 'ho ten');
+  const iSdt = cot(h, 'sdt', 'dien thoai');
+  const iMs = cot(h, 'mssv');
+  const iLop = cot(h, 'lop');
+  const iVt = cot(h, 'vai tro', 'chuc vu');
+  const iFb = cot(h, 'link fb', 'facebook');
+  const iBan = cot(h, 'ban');
+  if (iTen < 0) return { loi: 'File thiếu cột “Họ và Tên”.' };
+
+  let banHienTai = 'Thường trực', nhomHienTai = 'bcm';
+  const seenNames = new Map();
+  dataRows.forEach((r, idx) => {
+   const line = idx + 2;
+   const day = r.filter(c => chuanHoaChuoi(c) !== '');
+   if (day.length === 1) {
+    const t = bo(day[0]);
+    if (/key|nguon/.test(t)) nhomHienTai = 'nguon';
+    else if (/ban chap hanh|^bch/.test(t)) nhomHienTai = 'bch';
+    else if (/^ban |^thuong truc|^thuong vu/.test(t)) { banHienTai = matBan(day[0]); nhomHienTai = 'bcm'; }
+    skipCount++;
+    skipped.push({ line, msg: `Dòng tiêu đề nhóm "${chuanHoaChuoi(day[0])}"` });
+    return;
+   }
+   const ten = chuanHoaChuoi(r[iTen]);
+   if (!ten) {
+    errorCount++;
+    errors.push({ line, msg: 'Thiếu Họ và Tên.' });
+    return;
+   }
+   const key = bo(ten);
+   if (seenNames.has(key)) {
+    errorCount++;
+    const msg = `Trùng tên nhân sự "${ten}" với dòng ${seenNames.get(key)} trong cùng file.`;
+    duplicates.push({ line, key, msg });
+    errors.push({ line, msg });
+    return;
+   }
+   seenNames.set(key, line);
+
+   const rawFb = iFb >= 0 ? chuanHoaChuoi(r[iFb]) : '';
+   if (rawFb && !isSafeUrl(rawFb)) {
+    errorCount++;
+    errors.push({ line, msg: `Link Facebook "${rawFb}" không hợp lệ hoặc không an toàn.` });
+    return;
+   }
+   const vt = iVt >= 0 && chuanHoaChuoi(r[iVt]) ? matVaiTro(r[iVt]) : 'Thành viên';
+   const ban = iBan >= 0 && chuanHoaChuoi(r[iBan]) ? matBan(r[iBan]) : banHienTai;
+   const nhom = ['Bí thư', 'Phó Bí thư', 'UV BTV', 'UV BCH'].includes(vt) ? 'bch' : nhomHienTai;
+   const recPayload = {
+    ten,
+    ban,
+    vaiTro: vt,
+    sdt: iSdt >= 0 ? chuanHoaMaSo(r[iSdt]) : '',
+    mssv: iMs >= 0 ? chuanHoaMaSo(r[iMs]) : '',
+    lop: iLop >= 0 ? chuanHoaChuoi(r[iLop]) : '',
+    fb: rawFb,
+    nhom,
+    bch: nhom === 'bch' ? 1 : 0
+   };
+   const existing = DB.ns.find(u => bo(u.ten) === key);
+   if (existing) {
+    updateCount++;
+    actions.push({
+     line, table: 'nhan_su', action: 'updated',
+     before: { ten: existing.ten, vai_tro: existing.vaiTro, ban: existing.ban, lop: existing.lop, sdt: existing.sdt, mssv: existing.mssv, fb: existing.fb, bch: existing.bch, nhom: existing.nhom },
+     record: { ...existing, ...recPayload }
+    });
+   } else {
+    createCount++;
+    actions.push({ line, table: 'nhan_su', action: 'created', before: null, record: { theoDoi: [], ...recPayload } });
+   }
+  });
+ } else if (loai === 'tl') {
+  if (state.role === 'cd' || (!coQuyen('ql_kh') && !isAdmin())) return { loi: 'Chỉ LCĐ hoặc Quản trị viên mới có quyền nhập kế hoạch công tác theo timeline.' };
+  const iTen = cot(h, 'hoat dong', 'ten');
+  const iTg = cot(h, 'thoi gian');
+  const iTd = cot(h, 'tien do');
+  const iBan = cot(h, 'ban phu trach');
+  const iPt = cot(h, 'phu trach');
+  const iNote = cot(h, 'note', 'ghi chu');
+  const iMc = cot(h, 'minh chung');
+  const iKq = cot(h, 'ket qua');
+  if (iTen < 0) return { loi: 'File thiếu cột “HOẠT ĐỘNG”.' };
+
+  const seenTitle = new Map();
+  dataRows.forEach((r, idx) => {
+   const line = idx + 2;
+   const ten = chuanHoaChuoi(r[iTen]);
+   if (!ten) {
+    errorCount++;
+    errors.push({ line, msg: 'Thiếu tên hoạt động.' });
+    return;
+   }
+   const key = bo(ten);
+   if (seenTitle.has(key)) {
+    errorCount++;
+    const msg = `Trùng tên hoạt động "${ten}" với dòng ${seenTitle.get(key)} trong cùng file.`;
+    duplicates.push({ line, key, msg });
+    errors.push({ line, msg });
+    return;
+   }
+   seenTitle.set(key, line);
+
+   const hienThi = iTg >= 0 ? chuanHoaChuoi(r[iTg]) : '';
+   const d = hienThi ? ngayISOChuan(hienThi) : TODAY;
+   if (hienThi && !d) {
+    errorCount++;
+    errors.push({ line, msg: `Thời gian "${hienThi}" không đúng định dạng DD/MM/YYYY hoặc YYYY-MM-DD.` });
+    return;
+   }
+   const rawMc = iMc >= 0 ? chuanHoaChuoi(r[iMc]) : '';
+   if (rawMc && !isSafeUrl(rawMc)) {
+    errorCount++;
+    errors.push({ line, msg: `Link minh chứng "${rawMc}" không an toàn.` });
+    return;
+   }
+
+   const ptIds = iPt >= 0 && chuanHoaChuoi(r[iPt])
+    ? chuanHoaChuoi(r[iPt]).split('/').map(x => { const u = DB.ns.find(n => bo(n.ten).includes(bo(x))); return u && u.id; }).filter(Boolean)
+    : [];
+   const ban = iBan >= 0 && chuanHoaChuoi(r[iBan])
+    ? chuanHoaChuoi(r[iBan]).split(',').map(x => matBan(x)).filter((v, i, a) => a.indexOf(v) === i)
+    : ['Thường trực'];
+
+   const recPayload = {
+    ten,
+    hienThi: hienThi || dmy(d),
+    tienDo: iTd >= 0 ? matTienDo(r[iTd]) : 'chua',
+    ban,
+    ptIds,
+    note: iNote >= 0 ? chuanHoaChuoi(r[iNote]) : '',
+    mc: rawMc,
+    ketQua: iKq >= 0 ? chuanHoaChuoi(r[iKq]) : ''
+   };
+   const existing = DB.kh.find(k => bo(k.ten) === key);
+   if (existing) {
+    updateCount++;
+    actions.push({
+     line, table: 'ke_hoach', action: 'updated',
+     before: { ten: existing.ten, hien_thi: existing.hienThi, tien_do: existing.tienDo, mc: existing.mc, ket_qua: existing.ketQua, note: existing.note },
+     record: { ...existing, ...recPayload, ptId: ptIds[0] ?? existing.ptId }
+    });
+   } else {
+    createCount++;
+    actions.push({
+     line, table: 'ke_hoach', action: 'created', before: null,
+     record: { crit: 'ct', batDau: d, hanChot: d, lich: [], diem: 0, chiTieu: 0, donVi: 'n', batBuoc: false, ptId: ptIds[0] || null, ...recPayload }
+    });
+   }
+  });
+ } else if (loai === 'dd') {
+  if (state.role === 'cd' || (!coQuyen('ql_nhansu') && !isAdmin())) return { loi: 'Chỉ LCĐ hoặc Quản trị viên mới có quyền nhập điểm danh.' };
+  const iTen = cot(h, 'ho va ten', 'ho ten');
+  if (iTen < 0) return { loi: 'File thiếu cột “Họ và Tên”.' };
+  const cols = [];
+  h.forEach((c, i) => { const d = ngayISOChuan(c); if (d) cols.push({ i, ngay: d }); });
+  if (!cols.length) return { loi: 'Không tìm thấy cột ngày sinh hoạt hợp lệ (YYYY-MM-DD hoặc DD/MM/YYYY) ở dòng tiêu đề.' };
+
+  const seenNames = new Map();
+  dataRows.forEach((r, idx) => {
+   const line = idx + 2;
+   const ten = chuanHoaChuoi(r[iTen]);
+   if (!ten) {
+    errorCount++;
+    errors.push({ line, msg: 'Thiếu Họ và Tên.' });
+    return;
+   }
+   const key = bo(ten);
+   if (seenNames.has(key)) {
+    errorCount++;
+    const msg = `Trùng nhân sự "${ten}" với dòng ${seenNames.get(key)}.`;
+    duplicates.push({ line, key, msg });
+    errors.push({ line, msg });
+    return;
+   }
+   seenNames.set(key, line);
+
+   const u = DB.ns.find(x => bo(x.ten) === key);
+   if (!u) {
+    errorCount++;
+    errors.push({ line, msg: `Không tìm thấy nhân sự "${ten}" trong hệ thống.` });
+    return;
+   }
+
+   const cellOps = [];
+   for (const c of cols) {
+    const rawVal = chuanHoaChuoi(r[c.i]);
+    if (!rawVal) continue;
+    const v = bo(rawVal);
+    const co = ['true', 'x', 'co', '1', 'v', 'yes'].includes(v);
+    const muon = v.includes('muon');
+    const vang = ['false', '0', 'vang', 'khong'].includes(v);
+    if (!co && !muon && !vang) {
+     errorCount++;
+     errors.push({ line, msg: `Giá trị điểm danh "${rawVal}" ở ngày ${c.ngay} không hợp lệ.` });
+     return;
+    }
+    const existingHop = DB.hop.find(x => x.ngay === c.ngay);
+    const existingDd = existingHop ? ddOf(existingHop.id, u.id) : null;
+    cellOps.push({
+     ngay: c.ngay,
+     nsId: u.id,
+     co: co || muon,
+     muon,
+     existingHopId: existingHop ? existingHop.id : null,
+     before: existingDd ? { co: existingDd.co, muon: existingDd.muon } : null
+    });
+   }
+   if (!cellOps.length) {
+    skipCount++;
+    skipped.push({ line, msg: `${ten}: không có ô điểm danh nào cần cập nhật.` });
+    return;
+   }
+   const allUpdates = cellOps.every(op => op.before !== null);
+   if (allUpdates) updateCount++; else createCount++;
+   actions.push({ line, table: 'diem_danh', action: allUpdates ? 'updated' : 'created', before: null, record: { nsId: u.id, cellOps } });
+  });
+ } else {
+  return { loi: 'Loại nhập dữ liệu không hợp lệ.' };
+ }
+
+ const total = dataRows.length;
+ // Bảo đảm bất biến: total === create + update + skip + error
+ const summary = { total, create: createCount, update: updateCount, skip: skipCount, error: errorCount };
+ return { ok: true, loai, rawRows, summary, actions, errors, duplicates, skipped, strippedCols };
+}
+
+async function thucThiImportBatch(loai, dryRunResult, meta = {}) {
+ if (!dryRunResult || dryRunResult.loi) {
+  throw new Error(dryRunResult ? dryRunResult.loi : 'Chưa chạy Dry-run kiểm tra dữ liệu.');
+ }
+ const client = dataApi._requireClient();
+ const checksum = meta.checksum || await tinhChecksumImport(loai, dryRunResult.rawRows);
+ const cdScope = state.role === 'cd' ? state.cdId : null;
+
+ // Chặn nhập trùng file đã hoàn tất cùng (loai, file_checksum, cd_id)
+ let idemQ = client.from('import_batches').select('id, created_at')
+  .eq('loai', loai).eq('file_checksum', checksum).eq('status', 'completed');
+ idemQ = cdScope !== null ? idemQ.eq('cd_id', cdScope) : idemQ.is('cd_id', null);
+ const idemRes = await idemQ.limit(1);
+ if (idemRes.error) throw new Error('Lỗi kiểm tra chống nhập trùng: ' + idemRes.error.message);
+ if (idemRes.data && idemRes.data.length > 0) {
+  throw new Error(`Dữ liệu trùng lô đã nhập hoàn tất trước đó (Batch ID: ${idemRes.data[0].id}). Huỷ nhập để tránh nhân đôi.`);
+ }
+
+ const { summary, actions } = dryRunResult;
+ const batchInsert = await client.from('import_batches').insert({
+  loai,
+  file_name: String(meta.fileName || 'paste').slice(0, 255),
+  file_checksum: checksum,
+  cd_id: cdScope,
+  status: 'running',
+  total_rows: summary.total,
+  created_count: 0,
+  updated_count: 0,
+  skipped_count: summary.skip,
+  error_count: summary.error,
+  summary: { dryRun: summary }
+ }).select().single();
+ if (batchInsert.error || !batchInsert.data) {
+  throw new Error('Không khởi tạo được lô nhập trên máy chủ: ' + (batchInsert.error ? batchInsert.error.message : 'RLS từ chối'));
+ }
+
+ const batchId = batchInsert.data.id;
+ let actualCreated = 0, actualUpdated = 0;
+ const runtimeErrors = [];
+ const CHUNK = 25;
+ const hopCache = new Map();
+
+ try {
+  for (let i = 0; i < actions.length; i += CHUNK) {
+   const slice = actions.slice(i, i + CHUNK);
+   const itemLogs = [];
+   for (const act of slice) {
+    if (act.table === 'doan_vien') {
+     const res = await dataApi.luuDV(act.record, { isNew: act.action === 'created', forceOverwrite: true });
+     itemLogs.push({ batch_id: batchId, table_name: 'doan_vien', record_key: String(res.data.id), action: act.action, before_data: act.before, after_updated_at: res.data.updatedAt });
+     if (act.action === 'created') actualCreated++; else actualUpdated++;
+    } else if (act.table === 'bao_cao') {
+     const res = await dataApi.luuBC(act.record, { isNew: act.action === 'created', forceOverwrite: true });
+     itemLogs.push({ batch_id: batchId, table_name: 'bao_cao', record_key: String(res.data.id), action: act.action, before_data: act.before, after_updated_at: res.data.updatedAt });
+     if (act.action === 'created') actualCreated++; else actualUpdated++;
+    } else if (act.table === 'nhan_su') {
+     const res = await dataApi.luuNS(act.record, { isNew: act.action === 'created', forceOverwrite: true });
+     itemLogs.push({ batch_id: batchId, table_name: 'nhan_su', record_key: String(res.data.id), action: act.action, before_data: act.before, after_updated_at: res.data.updatedAt });
+     if (act.action === 'created') actualCreated++; else actualUpdated++;
+    } else if (act.table === 'ke_hoach') {
+     const res = await dataApi.luuKH(act.record, { isNew: act.action === 'created', forceOverwrite: true });
+     itemLogs.push({ batch_id: batchId, table_name: 'ke_hoach', record_key: String(res.data.id), action: act.action, before_data: act.before, after_updated_at: res.data.updatedAt });
+     if (act.action === 'created') actualCreated++; else actualUpdated++;
+    } else if (act.table === 'diem_danh') {
+     for (const op of act.record.cellOps) {
+      let hopId = op.existingHopId || hopCache.get(op.ngay);
+      if (!hopId) {
+       const exH = DB.hop.find(h => h.ngay === op.ngay);
+       if (exH) hopId = exH.id;
+       else {
+        const hSaved = await dataApi.luuHop({ ten: 'Họp Liên chi đoàn KHUD', ngay: op.ngay, noiDung: '', bienBan: '' }, { isNew: true });
+        hopId = hSaved.data.id;
+        itemLogs.push({ batch_id: batchId, table_name: 'sinh_hoat', record_key: String(hopId), action: 'created', before_data: null, after_updated_at: hSaved.data.updatedAt });
+       }
+       hopCache.set(op.ngay, hopId);
+      }
+      const dRes = await dataApi.luuDiemDanh(hopId, op.nsId, op.co, op.muon);
+      itemLogs.push({
+       batch_id: batchId, table_name: 'diem_danh', record_key: `${hopId}:${op.nsId}`,
+       action: op.before ? 'updated' : 'created', before_data: op.before, after_updated_at: dRes.data.updatedAt
+      });
+     }
+     if (act.action === 'created') actualCreated++; else actualUpdated++;
+    }
+   }
+
+   if (itemLogs.length) {
+    const logRes = await client.from('import_batch_items').insert(itemLogs);
+    if (logRes.error) throw logRes.error;
+   }
+   await client.from('import_batches').update({
+    created_count: actualCreated,
+    updated_count: actualUpdated,
+    summary: { dryRun: summary, checkpointOffset: i + slice.length }
+   }).eq('id', batchId);
+  }
+ } catch (err) {
+  runtimeErrors.push(err.message || String(err));
+  const failStatus = (actualCreated + actualUpdated) > 0 ? 'partial' : 'failed';
+  await client.from('import_batches').update({
+   status: failStatus,
+   created_count: actualCreated,
+   updated_count: actualUpdated,
+   error_count: summary.error + 1,
+   summary: { dryRun: summary, runtimeErrors }
+  }).eq('id', batchId);
+  await dataApi.loadAll().catch(() => {});
+  return {
+   ok: false,
+   status: failStatus,
+   batchId,
+   error: runtimeErrors.join('; '),
+   reconciliation: {
+    total: summary.total, created: actualCreated, updated: actualUpdated,
+    skipped: summary.skip, error: summary.error, checksum
+   }
+  };
+ }
+
+ // Đối soát từ server theo batch_id
+ const itemVerify = await client.from('import_batch_items').select('id, action, table_name', { count: 'exact' }).eq('batch_id', batchId);
+ if (itemVerify.error) throw itemVerify.error;
+
+ const reconciliation = {
+  batchId,
+  checksum,
+  cdScope,
+  total: summary.total,
+  created: actualCreated,
+  updated: actualUpdated,
+  skipped: summary.skip,
+  error: summary.error,
+  balanced: summary.total === (actualCreated + actualUpdated + summary.skip + summary.error),
+  serverLoggedItems: itemVerify.count || (itemVerify.data ? itemVerify.data.length : 0)
+ };
+
+ await client.from('import_batches').update({
+  status: 'completed',
+  created_count: actualCreated,
+  updated_count: actualUpdated,
+  completed_at: new Date().toISOString(),
+  summary: { dryRun: summary, reconciliation }
+ }).eq('id', batchId);
+
+ await dataApi.loadAll();
+ return { ok: true, status: 'completed', batchId, reconciliation };
+}
+
+async function hoanTacImportBatch(batchId) {
+ const client = dataApi._requireClient();
+ const res = await client.rpc('rpc_rollback_import_batch', { p_batch_id: batchId });
+ if (res.error) throw res.error;
+ await dataApi.loadAll();
+ return res.data;
+}
+
 const NHAP = {
- dv: { ten: 'danh sách đoàn viên', mau: 'doanvien', ap: apDungDV, moTa: 'Khớp theo MSSV: trùng thì cập nhật, chưa có thì thêm mới. Chi đoàn chỉ được nhập thành viên của chi đoàn mình.' },
- bc: { ten: 'số liệu báo cáo kế hoạch', mau: 'baocao', ap: apDungBC, moTa: 'Khớp theo mã kế hoạch và chi đoàn; hồ sơ nhập vào ở trạng thái Chờ duyệt.' },
- ns: { ten: 'danh sách nhân sự LCĐ', mau: 'nhansu', ap: apDungNS, moTa: 'Đọc đúng sheet “DS NHÂN SỰ”: dòng chỉ có tên ban được hiểu là tiêu đề nhóm, người bên dưới thuộc ban đó.' },
- tl: { ten: 'công tác theo timeline', mau: 'timeline', ap: apDungTL, moTa: 'Đọc đúng sheet “CÔNG TÁC THEO TIMELINE”: hoạt động, tiến độ, ban và người phụ trách, minh chứng, kết quả.' },
- dd: { ten: 'bảng điểm danh', mau: null, ap: apDungDD, moTa: 'Đọc đúng sheet “ĐIỂM DANH”: mỗi cột ngày là một buổi sinh hoạt, giá trị TRUE/FALSE hoặc x.' },
+ dv: { ten: 'danh sách đoàn viên', mau: 'doanvien', tplFile: 'templates/mau_doan_vien.xlsx', ap: apDungDV, moTa: 'Khớp theo MSSV (chuỗi, giữ số 0 đầu): kiểm tra Dry-run trước khi ghi, không tự chuyển chi đoàn nếu xung đột.' },
+ bc: { ten: 'số liệu báo cáo kế hoạch', mau: 'baocao', tplFile: 'templates/mau_bao_cao.xlsx', ap: apDungBC, moTa: 'Khớp theo mã kế hoạch và chi đoàn; hồ sơ nhập vào luôn ở trạng thái Chờ duyệt.' },
+ ns: { ten: 'danh sách nhân sự LCĐ', mau: 'nhansu', tplFile: 'templates/mau_nhan_su_lcd.xlsx', ap: apDungNS, moTa: 'Đọc đúng sheet “DS NHÂN SỰ”: dòng chỉ có tên ban được hiểu là tiêu đề nhóm, MSSV/SĐT giữ dạng chuỗi.' },
+ tl: { ten: 'công tác theo timeline', mau: 'timeline', tplFile: 'templates/mau_timeline_kehoach.xlsx', ap: apDungTL, moTa: 'Đọc đúng sheet “CÔNG TÁC THEO TIMELINE”: kiểm tra ngày, ban/người phụ trách, URL minh chứng hợp lệ.' },
+ dd: { ten: 'bảng điểm danh', mau: null, tplFile: 'templates/mau_diem_danh.xlsx', ap: apDungDD, moTa: 'Đọc đúng sheet “ĐIỂM DANH”: mỗi cột ngày (YYYY-MM-DD hoặc DD/MM/YYYY) là một buổi sinh hoạt.' },
 };
 
 function formNhap(loai) {
  const cf = NHAP[loai];
  nhapRows = null;
+ let lastDryRun = null;
+ let lastFileName = 'paste';
+ dlg.classList.add('dlg-wide');
  dlgBody.innerHTML = `<h2>Nhập ${esc(cf.ten)} từ Excel</h2>
  <p class="sub">${esc(cf.moTa)}</p>
  <div class="f"><label for="n_file">Chọn file .xlsx hoặc .csv</label><input id="n_file" type="file" accept=".xlsx,.xls,.csv,.txt"></div>
  <div class="f"><label for="n_ta">Hoặc dán trực tiếp từ Excel (Ctrl+V, gồm cả dòng tiêu đề)</label>
   <textarea id="n_ta" style="width:100%;height:88px;font:12px/1.5 ui-monospace,Consolas,monospace"></textarea></div>
  <div id="n_xem"></div>
- <div class="row"><button type="button" id="huy">Huỷ</button>
-  ${cf.mau ? `<button type="button" id="btn_mau">Tải file mẫu</button>` : ''}
-  <button type="button" class="b-p end" id="luu" disabled>Áp dụng</button></div>`;
+ <div class="row">
+  <button type="button" id="huy">Huỷ</button>
+  ${cf.mau ? `<button type="button" id="btn_mau">Tạo file mẫu</button>` : ''}
+  ${cf.tplFile ? `<a href="${esc(cf.tplFile)}" download class="b-s" style="text-decoration:none;display:inline-flex;align-items:center">Tải template chuẩn</a>` : ''}
+  <button type="button" class="b-p end" id="luu" disabled>Áp dụng lô nhập</button>
+ </div>`;
  dlg.showModal();
 
  const huy = dlgBody.querySelector('#huy');
- if (huy) huy.onclick = () => dlg.close();
+ if (huy) huy.onclick = () => { dlg.close(); dlg.classList.remove('dlg-wide'); };
 
  const btnMau = dlgBody.querySelector('#btn_mau');
  if (btnMau && cf.mau) {
@@ -479,18 +1125,31 @@ function formNhap(loai) {
  const xem = dlgBody.querySelector('#n_xem');
  const luu = dlgBody.querySelector('#luu');
 
- const nhan = rows => {
+ const nhan = (rows, fileName = 'paste') => {
+  lastFileName = fileName;
   nhapRows = rows.filter(r => r.some(c => String(c ?? '').trim() !== ''));
-  const n = nhapRows.length - 1;
-  xem.innerHTML = n > 0 ? '<div class="note">Đọc được <b>' + n + '</b> dòng dữ liệu, ' + nhapRows[0].length + ' cột: ' + nhapRows[0].map(esc).join(' · ') + '</div>'
-   + '<div class="scroll" style="max-height:140px;margin-bottom:10px"><table><tbody>'
-   + nhapRows.slice(1, 6).map(r => '<tr>' + r.map(c => '<td class="t2">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>'
-   : '<div class="note" style="border-left-color:var(--crit)">Không đọc được dòng dữ liệu nào.</div>';
-  luu.disabled = !(n > 0);
+  lastDryRun = dryRunImport(loai, nhapRows);
+  if (lastDryRun.loi) {
+   xem.innerHTML = `<div class="note" style="border-left-color:var(--crit)">${esc(lastDryRun.loi)}</div>`;
+   luu.disabled = true;
+   return;
+  }
+  const s = lastDryRun.summary;
+  const errHtml = lastDryRun.errors.length
+   ? `<div class="scroll" style="max-height:130px;margin:8px 0"><table><thead><tr><th>Dòng</th><th>Lỗi / Xung đột phát hiện (sẽ không ghi)</th></tr></thead><tbody>
+      ${lastDryRun.errors.slice(0, 15).map(er => `<tr><td class="n"><b>${er.line}</b></td><td style="color:var(--crit)">${esc(er.msg)}</td></tr>`).join('')}
+      </tbody></table></div>` : '';
+  const stripHtml = lastDryRun.strippedCols.length
+   ? `<div class="note" style="border-left-color:var(--warn)">Đã loại bỏ cột không tin cậy (quyền/trạng thái duyệt/điểm chính thức): <b>${lastDryRun.strippedCols.map(esc).join(', ')}</b>.</div>` : '';
+
+  xem.innerHTML = `<div class="note">
+   <b>Kết quả Dry-run (chỉ kiểm tra, chưa ghi DB):</b> Tổng nguồn <b>${s.total}</b> = Tạo mới <b>${s.create}</b> + Cập nhật <b>${s.update}</b> + Bỏ qua <b>${s.skip}</b> + Lỗi <b>${s.error}</b>.
+  </div>${stripHtml}${errHtml}`;
+  luu.disabled = !(s.create + s.update > 0);
  };
 
  dlgBody.querySelector('#n_ta').addEventListener('input', e => {
-  if (e.target.value.trim()) nhan(tachBang(e.target.value));
+  if (e.target.value.trim()) nhan(tachBang(e.target.value), 'paste');
  });
 
  dlgBody.querySelector('#n_file').addEventListener('change', e => {
@@ -504,51 +1163,59 @@ function formNhap(loai) {
      return;
     }
     const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-    nhan(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }));
+    nhan(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }), f.name);
    } else {
-    nhan(tachBang(new TextDecoder('utf-8').decode(ev.target.result)));
+    nhan(tachBang(new TextDecoder('utf-8').decode(ev.target.result)), f.name);
    }
   };
   r.readAsArrayBuffer(f);
  });
 
  luu.onclick = async () => {
+  if (!lastDryRun || lastDryRun.loi) return;
   luu.disabled = true;
-  luu.textContent = 'Đang lưu...';
-  const kq = cf.ap(nhapRows);
-  if (kq.loi) {
-   xem.innerHTML = '<div class="note" style="border-left-color:var(--crit)">' + esc(kq.loi) + '</div>';
-   luu.disabled = false;
-   luu.textContent = 'Áp dụng';
-   return;
-  }
-
-  if (typeof dataApi !== 'undefined' && kq.items && kq.items.length) {
-   try {
-    for (const it of kq.items) {
-     if (kq.loai === 'dv') await dataApi.luuDV(it);
-     else if (kq.loai === 'bc') await dataApi.luuBC(it);
-     else if (kq.loai === 'ns') await dataApi.luuNS(it);
-     else if (kq.loai === 'kh') await dataApi.luuKH(it);
-     else if (kq.loai === 'dd') await dataApi.luuDiemDanh(it.hopId, it.nsId, it.co, it.muon);
-    }
-   } catch (e) {
-    console.error('Lỗi khi lưu dữ liệu lên máy chủ:', e);
-    alert('Lưu lên máy chủ gặp lỗi: ' + (e.message || e));
-   }
-  }
-
-  save();
-  dlg.close();
-  render();
-
-  setTimeout(() => {
-   dlgBody.innerHTML = '<h2>Đã nhập xong</h2><p class="sub">' + esc(kq.ok) + '</p>'
-    + '<div class="row"><button type="button" class="b-p end" id="dong_tc">Đóng</button></div>';
+  luu.textContent = 'Đang ghi theo lô...';
+  try {
+   const res = await thucThiImportBatch(loai, lastDryRun, { fileName: lastFileName });
+   const rc = res.reconciliation || {};
+   render();
+   dlgBody.innerHTML = `<h2>${res.ok ? 'Nhập & Đối soát hoàn tất' : 'Nhập bị gián đoạn (' + esc(res.status) + ')'}</h2>
+   <div class="note" style="border-left-color:${res.ok ? 'var(--good)' : 'var(--crit)'}">
+    <b>Batch ID:</b> <code>${esc(res.batchId)}</code><br>
+    <b>Checksum nguồn (SHA-256):</b> <code>${esc((rc.checksum || '').slice(0, 16))}…</code><br>
+    <b>Đối soát nguồn (${rc.total}):</b> Tạo mới <b>${rc.created}</b> + Cập nhật <b>${rc.updated}</b> + Bỏ qua <b>${rc.skipped}</b> + Lỗi <b>${rc.error}</b>
+    ${rc.balanced ? ' · <b style="color:var(--good)">Khớp 100%</b>' : ' · <b style="color:var(--crit)">Chưa cân đối</b>'}
+    ${res.error ? '<br><span style="color:var(--crit)">Chi tiết lỗi: ' + esc(res.error) + '</span>' : ''}
+   </div>
+   <div class="row">
+    ${res.batchId && (res.status === 'completed' || res.status === 'partial') ? `<button type="button" class="b-no" id="btn_rb_batch">Hoàn tác lô này (Rollback)</button>` : ''}
+    <button type="button" class="b-p end" id="dong_tc">Đóng</button>
+   </div>`;
    const dongTc = dlgBody.querySelector('#dong_tc');
-   if (dongTc) dongTc.onclick = () => dlg.close();
-   dlg.showModal();
-  }, 60);
+   if (dongTc) dongTc.onclick = () => { dlg.close(); dlg.classList.remove('dlg-wide'); };
+   const btnRb = dlgBody.querySelector('#btn_rb_batch');
+   if (btnRb) {
+    btnRb.onclick = async () => {
+     btnRb.disabled = true;
+     btnRb.textContent = 'Đang hoàn tác...';
+     try {
+      const rb = await hoanTacImportBatch(res.batchId);
+      render();
+      alert(`Hoàn tác thành công: xoá ${rb.deleted} dòng tạo mới, khôi phục ${rb.restored} dòng cập nhật, giữ nguyên ${rb.skipped_modified} dòng đã có chỉnh sửa sau import.`);
+      dlg.close();
+      dlg.classList.remove('dlg-wide');
+     } catch (rbErr) {
+      btnRb.disabled = false;
+      btnRb.textContent = 'Hoàn tác lô này (Rollback)';
+      alert('Hoàn tác thất bại: ' + (rbErr.message || rbErr));
+     }
+    };
+   }
+  } catch (e) {
+   luu.disabled = false;
+   luu.textContent = 'Áp dụng lô nhập';
+   xem.insertAdjacentHTML('afterbegin', `<div class="note" style="border-left-color:var(--crit)">${esc(e.message || e)}</div>`);
+  }
  };
 }
 
@@ -557,15 +1224,19 @@ PAGES.excel = function () {
  const ds = lcd ? ['tongket', 'timeline', 'lichcongtac', 'nhansu', 'danhgiabch', 'diemdanh', 'sinhhoat', 'doanvien', 'baocao', 'matran', 'kehoach'] : ['nhiemvu', 'doanvien'];
  const nh = lcd ? ['ns', 'tl', 'dd', 'dv', 'bc'] : ['dv', 'bc'];
 
- return `<div class="head"><div><h1>Nhập / xuất Excel</h1>
-  <p class="sub">${lcd ? 'Các bảng xuất ra giữ đúng cột của file checklist LCĐ đang dùng, và nhập ngược lại được từ chính file đó.' : 'Xuất số liệu chi đoàn, hoặc nhập danh sách đoàn viên từ file của lớp.'}</p></div></div>
+ return `<div class="head"><div><h1>Nhập / xuất Excel &amp; Chuẩn hóa dữ liệu</h1>
+  <p class="sub">${lcd ? 'Các bảng xuất ra giữ đúng cột của file checklist LCĐ đang dùng. Nhập dữ liệu hỗ trợ Dry-run, chống trùng và đối soát theo lô.' : 'Xuất số liệu chi đoàn, hoặc nhập danh sách đoàn viên / báo cáo từ template chuẩn.'}</p></div></div>
  <div class="card"><header><h3>Xuất dữ liệu</h3><p class="end">Sao chép dán thẳng vào Excel${coXLSX() && taiDuoc() ? ', hoặc tải .xlsx' : ''}</p></header>
   <div class="grid g3" style="margin:0">${ds.map(k => `<button style="text-align:left;padding:12px 14px" onclick="xuatBang('${k}')">
    <b>${esc(XUAT[k][0])}</b><div class="t2">${XUAT[k][1]().length - 1} dòng</div></button>`).join('')}</div>
   ${taiDuoc() ? '' : '<p class="t2" style="margin:12px 0 0">Bản chạy trên web không tự tải file được, nên dùng nút sao chép rồi dán vào Excel. Mở file index.html trực tiếp trên máy thì có thêm nút tải .xlsx.</p>'}</div>
- <div class="card" style="margin-top:14px"><header><h3>Nhập dữ liệu</h3><p class="end">Nhận .xlsx, .csv hoặc dán trực tiếp</p></header>
+ <div class="card" style="margin-top:14px"><header><h3>Nhập dữ liệu (Dry-run · Chống trùng · Đối soát)</h3><p class="end">Nhận .xlsx, .csv hoặc dán trực tiếp</p></header>
   <div class="grid g2" style="margin:0;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))">
   ${nh.map(k => `<button style="text-align:left;padding:12px 14px" onclick="formNhap('${k}')">
    <b>Nhập ${esc(NHAP[k].ten)}</b><div class="t2">${esc(NHAP[k].moTa)}</div></button>`).join('')}</div>
-  <p class="t2" style="margin:12px 0 0">Nhập từ file checklist hiện tại: mở sheet cần nhập trong Excel, bôi đen toàn bộ (gồm dòng tiêu đề), Ctrl+C rồi dán vào ô bên trên — hoặc chọn thẳng file .xlsx, hệ thống đọc sheet đầu tiên.</p></div>`;
+  <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+   <span class="t2">Template chuẩn:</span>
+   ${nh.map(k => `<a href="${esc(NHAP[k].tplFile)}" download class="b-s" style="text-decoration:none;font-size:11.5px">${esc(NHAP[k].tplFile.split('/').pop())}</a>`).join('')}
+   <a href="templates/HUONG_DAN_NHAP_LIEU.md" target="_blank" rel="noopener noreferrer" class="b-s" style="text-decoration:none;font-size:11.5px">Hướng dẫn nhập liệu</a>
+  </div></div>`;
 };
